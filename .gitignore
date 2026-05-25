@@ -12,3 +12,7 @@ results/*.md
 *.egg-info/
 dist/
 build/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
