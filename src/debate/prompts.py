@@ -191,7 +191,7 @@ Document your answer to this check in the `recency_bias_check` field.
 You MUST respond with a single JSON object and nothing else. No preamble, no
 explanation, no trailing text. The object must match this schema exactly:
 
-{
+{{
   "final_answer": "<The best answer to the original question, synthesized from the full debate. This is the answer you are endorsing. Write it as a complete, standalone response — not a summary of the debate.>",
   "verdict": "<supported | refuted | uncertain>",
   "confidence": <float between 0.0 and 1.0>,
@@ -201,7 +201,7 @@ explanation, no trailing text. The object must match this schema exactly:
   "skeptic_identified_valid_flaw": <true | false>,
   "debate_improved_answer": <true | false>,
   "recency_bias_check": "<string — your explicit self-audit for recency bias>"
-}
+}}
 
 Field definitions:
 - `final_answer`: The best answer you can synthesize from the debate. Write it
