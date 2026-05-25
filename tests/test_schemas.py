@@ -1,7 +1,7 @@
 """Tests for Pydantic schema validation."""
 import pytest
 from src.debate.schemas import (
-    AgentRole, ConvergenceReason, DebateTurn, DebateTranscript,
+    AgentRole, ConvergenceReason, VerdictType, DebateTurn, DebateTranscript,
     AgentResponse, JudgeOutput, GraphAnalysis, DebateResult,
     BenchmarkExample, BenchmarkResult,
 )

@@ -18,6 +18,12 @@ class ConvergenceReason(str, Enum):
     STABILIZATION = "stabilization"
 
 
+class VerdictType(str, Enum):
+    SUPPORTED = "supported"
+    REFUTED = "refuted"
+    UNCERTAIN = "uncertain"
+
+
 class DebateTurn(BaseModel):
     round_num: int
     role: AgentRole
@@ -39,7 +45,7 @@ class AgentResponse(BaseModel):
 
 class JudgeOutput(BaseModel):
     final_answer: str
-    verdict: str  # "supported" | "refuted" | "uncertain"
+    verdict: VerdictType
     confidence: float = Field(ge=0.0, le=1.0)
     key_reasons: list[str]
     unresolved_uncertainties: list[str]
@@ -67,7 +73,7 @@ class DebateResult(BaseModel):
     transcript: DebateTranscript
     judge_output: JudgeOutput
     converged: bool
-    convergence_reason: Optional[ConvergenceReason]
+    convergence_reason: Optional[ConvergenceReason] = None
     rounds_used: int
     graph_analysis: Optional[GraphAnalysis] = None
     total_input_tokens: int = 0
@@ -91,7 +97,7 @@ class BenchmarkResult(BaseModel):
     baseline_correct: Optional[bool] = None
     debate_correct: Optional[bool] = None
     debate_improved: bool
-    debate_confidence: float
+    debate_confidence: float = Field(ge=0.0, le=1.0)
     rounds_used: int
     converged: bool
     total_tokens: int
