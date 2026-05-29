@@ -61,17 +61,17 @@ class MockLLMClient(BaseLLMClient):
     """
 
     _RESPONSES: dict[str, str] = {
-        "Proposer": (
+        "You are the Proposer": (
             "I propose that the claim is well-supported by available evidence. "
             "My key assumption is that standard conditions apply. "
             "I acknowledge uncertainty around edge cases."
         ),
-        "Skeptic": (
+        "You are the Skeptic": (
             "The Proposer's argument relies on an unverified assumption. "
             "Specifically, the claim does not account for counterexample X. "
             "I challenge the Proposer to address this gap."
         ),
-        "Judge": json.dumps({
+        "You are the Judge": json.dumps({
             "final_answer": "The claim is likely true under standard conditions.",
             "verdict": "supported",
             "confidence": 0.72,
