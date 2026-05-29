@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import warnings
 
 from src.debate.schemas import JudgeOutput, DebateTranscript, AgentRole, VerdictType
 from src.debate.prompts import JUDGE_SYSTEM_PROMPT, JUDGE_USER_TEMPLATE
@@ -69,7 +70,12 @@ class JudgeAgent:
         try:
             data = _extract_json(raw)
             judge_output = JudgeOutput(**data)
-        except Exception:
+        except Exception as exc:
+            warnings.warn(
+                f"JudgeAgent: failed to parse model output as JudgeOutput: {exc!r}. "
+                "Falling back to uncertain verdict.",
+                stacklevel=2,
+            )
             # Fallback: return an uncertain verdict with the raw text as answer
             judge_output = JudgeOutput(
                 final_answer=raw[:500],
