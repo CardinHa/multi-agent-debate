@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.debate.schemas import AgentResponse, AgentRole, DebateTranscript
-from src.debate.prompts import PROPOSER_SYSTEM_PROMPT, SKEPTIC_SYSTEM_PROMPT
+from src.debate.prompts import PROPOSER_SYSTEM_PROMPT, SKEPTIC_MODE_PROMPTS
 from src.debate.utils import BaseLLMClient
 
 
@@ -49,10 +49,20 @@ class ProposerAgent:
 
 
 class SkepticAgent:
-    """Challenges the Proposer's argument to surface flaws and hallucinations."""
+    """Challenges the Proposer's argument to surface flaws and hallucinations.
 
-    def __init__(self, client: BaseLLMClient) -> None:
+    Supports specialized modes: 'general', 'factual', 'logic', 'evidence', 'safety'.
+    """
+
+    def __init__(self, client: BaseLLMClient, mode: str = "general") -> None:
+        if mode not in SKEPTIC_MODE_PROMPTS:
+            raise ValueError(
+                f"Unknown skeptic mode {mode!r}. "
+                f"Valid modes: {sorted(SKEPTIC_MODE_PROMPTS)}"
+            )
         self._client = client
+        self._system_prompt = SKEPTIC_MODE_PROMPTS[mode]
+        self.mode = mode
 
     def challenge(self, question: str, transcript: DebateTranscript) -> AgentResponse:
         """Challenge the Proposer's latest argument given the full transcript."""
@@ -63,7 +73,7 @@ class SkepticAgent:
             "Identify the strongest flaw in the Proposer's argument. "
             "Do not repeat objections you or the Skeptic have already raised."
         )
-        text, inp, out = self._client.call(SKEPTIC_SYSTEM_PROMPT, user_prompt)
+        text, inp, out = self._client.call(self._system_prompt, user_prompt)
         return AgentResponse(
             content=text, role=AgentRole.SKEPTIC,
             input_tokens=inp, output_tokens=out,
