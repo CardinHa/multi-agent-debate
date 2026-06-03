@@ -37,12 +37,13 @@ class DebateOrchestrator:
         enable_graph_analysis: bool = True,
         save_results: bool = True,
         results_dir: str = "results",
+        skeptic_mode: str = "general",
     ) -> None:
         if client is None:
             client = AnthropicClient(model=model, temperature=temperature)
         self._client = client
         self._proposer = ProposerAgent(client)
-        self._skeptic = SkepticAgent(client)
+        self._skeptic = SkepticAgent(client, mode=skeptic_mode)
         self._judge = JudgeAgent(client)
         self._detector = ConvergenceDetector(repetition_threshold=convergence_threshold)
         self.max_rounds = max_rounds

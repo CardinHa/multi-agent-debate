@@ -40,6 +40,10 @@ def debate(
     graph_viz: bool = typer.Option(False, "--graph-viz", help="Save graph PNG."),
     save: bool = typer.Option(True, "--save/--no-save", help="Save result JSON."),
     mock: bool = typer.Option(False, "--mock", help="Use mock LLM (no API calls)."),
+    skeptic_mode: str = typer.Option(
+        "general", "--skeptic-mode", "-s",
+        help="Skeptic personality: general | factual | logic | evidence | safety",
+    ),
 ) -> None:
     """Run a single multi-agent debate for a question or claim."""
     from src.debate.orchestrator import DebateOrchestrator
@@ -48,6 +52,8 @@ def debate(
     console.print()
     console.rule("[bold cyan]Multi-Agent Debate System[/]")
     console.print(Panel(question, title="[bold]Question / Claim[/]", border_style="cyan"))
+    if skeptic_mode != "general":
+        console.print(f"[dim]Skeptic mode: [yellow]{skeptic_mode}[/][/]")
 
     client = MockLLMClient() if mock else None
 
@@ -58,6 +64,7 @@ def debate(
         max_rounds=rounds,
         enable_graph_analysis=graph,
         save_results=save,
+        skeptic_mode=skeptic_mode,
     )
 
     with console.status("[cyan]Running debate...[/]"):
