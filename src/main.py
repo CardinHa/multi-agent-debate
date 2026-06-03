@@ -44,6 +44,7 @@ def debate(
         "general", "--skeptic-mode", "-s",
         help="Skeptic personality: general | factual | logic | evidence | safety",
     ),
+    export: str = typer.Option("", "--export", "-e", help="Export debate result to Markdown file"),
 ) -> None:
     """Run a single multi-agent debate for a question or claim."""
     from src.debate.orchestrator import DebateOrchestrator
@@ -128,6 +129,11 @@ def debate(
         f"\n[dim]Tokens — input: {result.total_input_tokens:,} | "
         f"output: {result.total_output_tokens:,}[/]"
     )
+
+    if export:
+        from src.debate.export import debate_to_markdown
+        Path(export).write_text(debate_to_markdown(result), encoding="utf-8")
+        console.print(f"[green]Exported to {export}[/green]")
 
 
 @app.command()
