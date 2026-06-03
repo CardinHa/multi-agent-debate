@@ -3,6 +3,7 @@ from src.debate.schemas import (
     AgentRole, VerdictType, ConvergenceReason,
     DebateTurn, DebateTranscript, JudgeOutput, GraphAnalysis, DebateResult
 )
+from src.debate.export import debate_to_markdown
 
 
 def _make_result(with_graph: bool = True) -> DebateResult:
@@ -51,53 +52,43 @@ def _make_result(with_graph: bool = True) -> DebateResult:
 
 
 def test_returns_non_empty_string():
-    from src.debate.export import debate_to_markdown
     result = _make_result()
     md = debate_to_markdown(result)
     assert isinstance(md, str) and len(md) > 0
 
 
 def test_question_in_output():
-    from src.debate.export import debate_to_markdown
     md = debate_to_markdown(_make_result())
     assert "Is the Earth flat?" in md
 
 
 def test_all_turn_roles_present():
-    from src.debate.export import debate_to_markdown
     md = debate_to_markdown(_make_result())
     assert "proposer" in md.lower() or "Proposer" in md
     assert "skeptic" in md.lower() or "Skeptic" in md
 
 
 def test_judge_verdict_present():
-    from src.debate.export import debate_to_markdown
     md = debate_to_markdown(_make_result())
     assert "supported" in md.lower() or "SUPPORTED" in md
 
 
 def test_key_reasons_present():
-    from src.debate.export import debate_to_markdown
     md = debate_to_markdown(_make_result())
     assert "Satellite imagery" in md
     assert "Physics" in md
 
 
 def test_graph_metrics_present_when_set():
-    from src.debate.export import debate_to_markdown
     md = debate_to_markdown(_make_result(with_graph=True))
-    # at least the value 3 (num_turns) should appear
-    assert "num_turns" in md or "Turns" in md or "3" in md
+    assert "| Nodes |" in md or "| Turns |" in md
 
 
 def test_no_graph_section_when_absent():
-    from src.debate.export import debate_to_markdown
     md = debate_to_markdown(_make_result(with_graph=False))
-    assert "Graph" not in md or "graph_analysis" not in md
+    assert "## Graph Metrics" not in md
 
 
 def test_token_usage_in_output():
-    from src.debate.export import debate_to_markdown
     md = debate_to_markdown(_make_result())
-    # total_input_tokens=60, total_output_tokens=40, total = 100
-    assert "60" in md or "40" in md or "100" in md
+    assert "*Tokens — input: 60 | output: 40*" in md

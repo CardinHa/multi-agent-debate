@@ -132,7 +132,9 @@ def debate(
 
     if export:
         from src.debate.export import debate_to_markdown
-        Path(export).write_text(debate_to_markdown(result), encoding="utf-8")
+        export_path = Path(export)
+        export_path.parent.mkdir(parents=True, exist_ok=True)
+        export_path.write_text(debate_to_markdown(result), encoding="utf-8")
         console.print(f"[green]Exported to {export}[/green]")
 
 

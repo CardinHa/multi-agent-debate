@@ -21,7 +21,8 @@ def debate_to_markdown(result: DebateResult) -> str:
     for turn in result.transcript.turns:
         lines.append(f"### Turn {turn.round_num} — {turn.role.value.capitalize()}")
         lines.append("")
-        lines.append(f"> {turn.content}")
+        quoted = "\n".join(f"> {line}" for line in turn.content.splitlines())
+        lines.append(quoted)
         lines.append("")
 
     # Judge verdict
