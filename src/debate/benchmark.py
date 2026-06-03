@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from datetime import datetime
-import pandas as pd
 from src.debate.schemas import BenchmarkExample, BenchmarkResult, AgentRole
 from src.debate.orchestrator import DebateOrchestrator
 from src.debate.utils import BaseLLMClient, AnthropicClient
@@ -104,6 +103,7 @@ class BenchmarkRunner:
 
     def save_results(self, results: list[BenchmarkResult]) -> str:
         """Save benchmark results to CSV and JSON, return base path."""
+        import pandas as pd  # deferred to avoid heavy import at module load time
         self.results_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base = self.results_dir / f"benchmark_{timestamp}"

@@ -270,6 +270,8 @@ score and verdict.
 # CONVERGENCE CHECK
 # ---------------------------------------------------------------------------
 
+# Optional: LLM-based convergence check (not used by default ConvergenceDetector,
+# which uses heuristics only). Available for callers that want API-backed convergence.
 CONVERGENCE_CHECK_PROMPT = """\
 You are a debate moderator. You will be shown the last few turns of an ongoing
 structured adversarial debate between a Proposer and a Skeptic. Your job is to

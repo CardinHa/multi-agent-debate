@@ -24,6 +24,9 @@ dev = [
     "pytest-cov>=5.0.0",
 ]
 
+[project.scripts]
+debate = "src.main:app"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
