@@ -258,5 +258,65 @@ def benchmark(
         console.print(f"[green]Calibration report saved to {cal_path}[/]")
 
 
+@app.command()
+def compare(
+    question: str = typer.Argument(..., help="Question or claim to debate."),
+    mode_a: str = typer.Option("general", "--mode-a", "-A", help="Skeptic mode for config A."),
+    mode_b: str = typer.Option("logic", "--mode-b", "-B", help="Skeptic mode for config B."),
+    rounds: int = typer.Option(3, "--rounds", "-r"),
+    mock: bool = typer.Option(False, "--mock", help="Use mock LLM (no API calls)."),
+    export: str = typer.Option("", "--export", "-e", help="Save comparison Markdown to file."),
+) -> None:
+    """Run the same question under two skeptic configurations and compare results."""
+    from src.debate.compare import run_comparison, comparison_to_markdown
+    from src.debate.utils import MockLLMClient
+
+    client = MockLLMClient() if mock else None
+
+    console.print()
+    console.rule("[bold cyan]A/B Debate Comparison[/]")
+    console.print(Panel(question, title="[bold]Question / Claim[/]", border_style="cyan"))
+    console.print(f"[dim]Config A: skeptic={mode_a}  |  Config B: skeptic={mode_b}[/]\n")
+
+    with console.status("[cyan]Running both debates...[/]"):
+        comp = run_comparison(
+            question=question,
+            client=client,
+            config_a={"skeptic_mode": mode_a},
+            config_b={"skeptic_mode": mode_b},
+            max_rounds=rounds,
+        )
+
+    # Summary table
+    table = Table(title="Comparison Results", box=box.ROUNDED)
+    table.add_column("", style="dim")
+    table.add_column(f"Config A ({mode_a})", style="green")
+    table.add_column(f"Config B ({mode_b})", style="yellow")
+    table.add_row("Verdict",
+                  comp.result_a.judge_output.verdict.value.upper(),
+                  comp.result_b.judge_output.verdict.value.upper())
+    table.add_row("Confidence",
+                  f"{comp.result_a.judge_output.confidence:.0%}",
+                  f"{comp.result_b.judge_output.confidence:.0%}")
+    table.add_row("Rounds used", str(comp.result_a.rounds_used), str(comp.result_b.rounds_used))
+    table.add_row("Converged",
+                  "Yes" if comp.result_a.converged else "No",
+                  "Yes" if comp.result_b.converged else "No")
+    console.print(table)
+
+    verdict_color = "green" if comp.verdict_match else "yellow"
+    console.print(
+        f"\n[{verdict_color}]Verdict match: {'Yes' if comp.verdict_match else 'No'}[/]  "
+        f"[dim]Confidence delta: {comp.confidence_delta:+.0%}[/]"
+    )
+
+    if export:
+        from pathlib import Path
+        export_path = Path(export)
+        export_path.parent.mkdir(parents=True, exist_ok=True)
+        export_path.write_text(comparison_to_markdown(comp), encoding="utf-8")
+        console.print(f"[green]Comparison saved to {export}[/]")
+
+
 if __name__ == "__main__":
     app()

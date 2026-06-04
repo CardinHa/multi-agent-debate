@@ -91,6 +91,17 @@ class DebateResult(BaseModel):
     constitutional_review: Optional[ConstitutionalReview] = None
 
 
+class DebateComparison(BaseModel):
+    question: str
+    config_a_label: str
+    config_b_label: str
+    result_a: DebateResult
+    result_b: DebateResult
+    verdict_match: bool
+    confidence_delta: float   # result_b.confidence - result_a.confidence
+    convergence_match: bool
+
+
 class BenchmarkExample(BaseModel):
     id: str
     question: str
