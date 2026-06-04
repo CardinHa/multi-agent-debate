@@ -87,6 +87,13 @@ class MockLLMClient(BaseLLMClient):
             ),
         }),
         "moderator": json.dumps({"converged": False, "reason": "Debate still active"}),
+        "You are the Constitutional": json.dumps({
+            "principles_checked": ["Honesty", "Calibration", "Safety", "Uncertainty acknowledgment"],
+            "violations": [],
+            "warnings": ["Confidence level is acceptable but could be more precisely stated."],
+            "overall_safe": True,
+            "revised_answer": None,
+        }),
     }
 
     def call(self, system: str, user: str) -> tuple[str, int, int]:

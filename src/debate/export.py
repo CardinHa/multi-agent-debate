@@ -47,6 +47,28 @@ def debate_to_markdown(result: DebateResult) -> str:
     lines.append(f"**Recency bias check:** {j.recency_bias_check}")
     lines.append("")
 
+    # Constitutional review
+    if result.constitutional_review:
+        cr = result.constitutional_review
+        safe_str = "PASS" if cr.overall_safe else "FAIL"
+        lines.append("## Constitutional Review")
+        lines.append("")
+        lines.append(f"**Status:** {safe_str}")
+        if cr.violations:
+            lines.append("")
+            lines.append("**Violations:**")
+            for v in cr.violations:
+                lines.append(f"- {v}")
+        if cr.warnings:
+            lines.append("")
+            lines.append("**Warnings:**")
+            for w in cr.warnings:
+                lines.append(f"- {w}")
+        if cr.revised_answer:
+            lines.append("")
+            lines.append(f"**Revised answer:** {cr.revised_answer}")
+        lines.append("")
+
     # Graph metrics
     if result.graph_analysis:
         g = result.graph_analysis

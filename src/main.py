@@ -54,6 +54,7 @@ def debate(
         None, "--human-role",
         help="Play as 'proposer' or 'skeptic' yourself. Pauses for your typed input each turn.",
     ),
+    constitutional: bool = typer.Option(False, "--constitutional", "-C", help="Run constitutional review of judge output."),
 ) -> None:
     """Run a single multi-agent debate for a question or claim."""
     from src.debate.orchestrator import DebateOrchestrator
@@ -84,6 +85,7 @@ def debate(
         skeptic_modes=skeptic_modes_list,
         human_role=human_role,
         human_input_fn=human_input_fn if human_role else None,
+        enable_constitutional=constitutional,
     )
 
     if human_role:
@@ -127,6 +129,20 @@ def debate(
         f"\n\n[dim]Recency bias check:[/] {j.recency_bias_check}"
     )
     console.print(Panel(verdict_panel, title="[bold blue]Judge Verdict[/]", border_style="blue"))
+
+    # Constitutional review
+    if result.constitutional_review:
+        cr = result.constitutional_review
+        safe_color = "green" if cr.overall_safe else "red"
+        safe_label = "PASS" if cr.overall_safe else "FAIL"
+        cr_text = f"[bold]Status:[/] [{safe_color}]{safe_label}[/]\n"
+        if cr.violations:
+            cr_text += "\n[bold]Violations:[/]\n" + "\n".join(f"  ✗ {v}" for v in cr.violations)
+        if cr.warnings:
+            cr_text += "\n[bold]Warnings:[/]\n" + "\n".join(f"  ⚠ {w}" for w in cr.warnings)
+        if cr.revised_answer:
+            cr_text += f"\n\n[bold]Revised Answer:[/] {cr.revised_answer}"
+        console.print(Panel(cr_text, title="[bold]Constitutional Review[/]", border_style=safe_color))
 
     # Graph analysis
     if result.graph_analysis:

@@ -68,6 +68,14 @@ class GraphAnalysis(BaseModel):
     edge_type_counts: dict[str, int]
 
 
+class ConstitutionalReview(BaseModel):
+    principles_checked: list[str]
+    violations: list[str]
+    warnings: list[str]
+    overall_safe: bool
+    revised_answer: Optional[str] = None
+
+
 class DebateResult(BaseModel):
     question: str
     transcript: DebateTranscript
@@ -80,6 +88,7 @@ class DebateResult(BaseModel):
     total_output_tokens: int = 0
     panel_mode: bool = False
     human_role: Optional[str] = None
+    constitutional_review: Optional[ConstitutionalReview] = None
 
 
 class BenchmarkExample(BaseModel):

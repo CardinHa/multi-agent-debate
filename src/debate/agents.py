@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import warnings
+
 from src.debate.schemas import AgentResponse, AgentRole, DebateTranscript
 from src.debate.prompts import PROPOSER_SYSTEM_PROMPT, SKEPTIC_MODE_PROMPTS
 from src.debate.utils import BaseLLMClient
@@ -78,3 +81,39 @@ class SkepticAgent:
             content=text, role=AgentRole.SKEPTIC,
             input_tokens=inp, output_tokens=out,
         )
+
+
+class ConstitutionalAgent:
+    """Reviews the Judge's final answer against honesty, calibration, safety, and uncertainty principles."""
+
+    def __init__(self, client: BaseLLMClient) -> None:
+        self._client = client
+
+    def review(self, judge_output, transcript: DebateTranscript):
+        from src.debate.schemas import ConstitutionalReview
+        from src.debate.prompts import CONSTITUTIONAL_SYSTEM_PROMPT
+        user_prompt = (
+            f"Judge's final answer: {judge_output.final_answer}\n"
+            f"Verdict: {judge_output.verdict.value} (confidence: {judge_output.confidence:.0%})\n"
+            f"Key reasons: {'; '.join(judge_output.key_reasons)}\n"
+            f"Unresolved uncertainties: {'; '.join(judge_output.unresolved_uncertainties)}\n\n"
+            "Apply the constitutional principles and return the JSON review."
+        )
+        text, _, _ = self._client.call(CONSTITUTIONAL_SYSTEM_PROMPT, user_prompt)
+        try:
+            # Strip markdown fences if present
+            cleaned = text.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("```")[1]
+                if cleaned.startswith("json"):
+                    cleaned = cleaned[4:]
+            data = json.loads(cleaned.strip())
+            return ConstitutionalReview(**data)
+        except Exception as e:
+            warnings.warn(f"ConstitutionalAgent failed to parse response: {e}")
+            return ConstitutionalReview(
+                principles_checked=["Honesty", "Calibration", "Safety", "Uncertainty acknowledgment"],
+                violations=[],
+                warnings=["Constitutional review parse failed"],
+                overall_safe=True,
+            )

@@ -6,9 +6,9 @@ from datetime import datetime
 from typing import Callable
 from src.debate.schemas import (
     AgentRole, AgentResponse, ConvergenceReason, DebateTurn, DebateTranscript,
-    DebateResult, GraphAnalysis,
+    DebateResult, GraphAnalysis, ConstitutionalReview,
 )
-from src.debate.agents import ProposerAgent, SkepticAgent, _format_transcript
+from src.debate.agents import ProposerAgent, SkepticAgent, ConstitutionalAgent, _format_transcript
 from src.debate.judge import JudgeAgent
 from src.debate.convergence import ConvergenceDetector
 from src.debate.graph import DebateGraphBuilder, GraphAnalyzer
@@ -42,6 +42,7 @@ class DebateOrchestrator:
         skeptic_modes: list[str] | None = None,
         human_role: str | None = None,
         human_input_fn: Callable[[str], str] | None = None,
+        enable_constitutional: bool = False,
     ) -> None:
         if client is None:
             client = AnthropicClient(model=model, temperature=temperature)
@@ -63,6 +64,7 @@ class DebateOrchestrator:
         self.results_dir = Path(results_dir)
         self._human_role = human_role
         self._human_input_fn = human_input_fn
+        self.enable_constitutional = enable_constitutional
 
     def run(self, question: str) -> DebateResult:
         """Run a complete debate for the given question and return a DebateResult."""
@@ -162,6 +164,12 @@ class DebateOrchestrator:
             analyzer = GraphAnalyzer(graph, transcript)
             graph_analysis = analyzer.analyze()
 
+        # --- Constitutional review ---
+        constitutional_review: ConstitutionalReview | None = None
+        if self.enable_constitutional:
+            constitutional_agent = ConstitutionalAgent(self._client)
+            constitutional_review = constitutional_agent.review(judge_output, transcript)
+
         result = DebateResult(
             question=question,
             transcript=transcript,
@@ -174,6 +182,7 @@ class DebateOrchestrator:
             total_output_tokens=total_output,
             panel_mode=self._panel_mode,
             human_role=self._human_role,
+            constitutional_review=constitutional_review,
         )
 
         if self.save_results:
