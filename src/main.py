@@ -45,6 +45,7 @@ def debate(
         help="Skeptic personality: general | factual | logic | evidence | safety",
     ),
     export: str = typer.Option("", "--export", "-e", help="Export debate result to Markdown file"),
+    export_html: str = typer.Option("", "--export-html", "-H", help="Export debate result to HTML file"),
     panel: str = typer.Option(
         "", "--panel",
         help="Comma-separated skeptic modes for panel debate, e.g. 'logic,evidence'",
@@ -159,6 +160,13 @@ def debate(
         export_path.parent.mkdir(parents=True, exist_ok=True)
         export_path.write_text(debate_to_markdown(result), encoding="utf-8")
         console.print(f"[green]Exported to {export}[/green]")
+
+    if export_html:
+        from src.debate.html_export import debate_to_html
+        html_path = Path(export_html)
+        html_path.parent.mkdir(parents=True, exist_ok=True)
+        html_path.write_text(debate_to_html(result), encoding="utf-8")
+        console.print(f"[green]HTML exported to {export_html}[/green]")
 
 
 @app.command()
