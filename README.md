@@ -106,24 +106,75 @@ cp .env.example .env
 
 ---
 
+## Feature Matrix
+
+| Feature | Flag | Description |
+|---|---|---|
+| Core debate | — | Proposer → Skeptic → Judge loop with convergence detection |
+| Skeptic modes | `--skeptic-mode` | `general` \| `factual` \| `logic` \| `evidence` \| `safety` |
+| Panel debates | `--panel` | Multiple skeptics challenge per round, e.g. `logic,evidence` |
+| Human-in-the-loop | `--human-role` | Play as `proposer` or `skeptic` yourself |
+| Constitutional review | `--constitutional` | Post-verdict audit against honesty, calibration, safety principles |
+| Graph analysis | `--graph` | NetworkX argument graph with centrality and edge-type metrics |
+| Markdown export | `--export` | Clean structured Markdown of the full debate result |
+| HTML export | `--export-html` | Self-contained color-coded HTML with confidence bar and stats |
+| A/B comparison | `compare` command | Same question, two configs — verdict/confidence delta report |
+| Benchmark | `benchmark` command | Debate vs single-agent baseline across 12 categorized claims |
+| Calibration report | `--report` | Per-category accuracy + confidence calibration bins → Markdown |
+| REST API | `serve` command | FastAPI server: `POST /debate`, `POST /compare`, `GET /health` |
+
+---
+
 ## Usage
 
-**Run a single debate:**
+**Basic debate:**
 ```bash
 python -m src.main debate "Your question here"
 ```
 
-**Run with more rounds, graph analysis, and graph visualization:**
+**With graph analysis and more rounds:**
 ```bash
 python -m src.main debate "Your question here" --rounds 4 --graph --graph-viz
 ```
 
-**Run the benchmark against the sample dataset:**
+**Specialized skeptic + constitutional review + exports:**
 ```bash
-python -m src.main benchmark --dataset data/sample_claims.jsonl
+python -m src.main debate "Does social media harm democracy?" \
+  --skeptic-mode evidence \
+  --constitutional \
+  --export results/debate.md \
+  --export-html results/debate.html
 ```
 
-**Dry run with no API key (mock mode):**
+**Panel debate (two skeptics with different modes):**
+```bash
+python -m src.main debate "Is nuclear energy safe?" --panel logic,safety --mock --no-save
+```
+
+**Human-in-the-loop (you play the skeptic):**
+```bash
+python -m src.main debate "The Earth is 6,000 years old" --human-role skeptic
+```
+
+**A/B comparison (same question, two skeptic configs):**
+```bash
+python -m src.main compare "Is consciousness an emergent property?" \
+  --mode-a general --mode-b logic --mock --export results/comparison.md
+```
+
+**Benchmark with calibration report:**
+```bash
+python -m src.main benchmark --dataset data/sample_claims.jsonl --mock --report
+```
+
+**Start the REST API server:**
+```bash
+pip install ".[server]"
+python -m src.main serve --port 8000
+# POST /debate  POST /compare  GET /health
+```
+
+**Dry run (no API key needed):**
 ```bash
 python -m src.main debate "Test question" --mock --no-save
 ```
@@ -316,19 +367,67 @@ pytest tests/ -v
 pytest tests/ -v --cov=src
 ```
 
-All tests use `MockLLMClient` — no API key required. The test suite covers `ConvergenceDetector` (6 tests), `DebateGraphBuilder` and `GraphAnalyzer` (4 tests), and Pydantic schema validation and round-trip serialization (4 tests).
+All tests use `MockLLMClient` — no API key required. 72 tests across 11 modules:
+
+| Module | Tests | Covers |
+|---|---|---|
+| `test_convergence` | 6 | Concession detection, Jaccard repetition, stabilization, `should_stop` |
+| `test_graph` | 4 | Graph construction, edge types, `GraphAnalysis` fields, DAG property |
+| `test_schemas` | 4 | Pydantic validation, JSON round-trip, field bounds |
+| `test_orchestrator` | 3 | End-to-end debate, max-rounds reason, graph-disabled path |
+| `test_skeptic_modes` | 5 | All 5 modes resolve distinct prompts, `ValueError` on unknown mode |
+| `test_export` | 8 | All 6 Markdown sections, graph conditional, HTML escaping |
+| `test_calibration` | 6 | Per-category stats, bin count, accuracy validity, overall accuracy |
+| `test_panel` | 5 | Panel flag, multiple skeptic turns per round, backward compat |
+| `test_human_loop` | 5 | Human proposer, human skeptic, `human_role` field, AI fallback |
+| `test_html_export` | 6 | DOCTYPE, question, role classes, verdict badge, graph table, XSS escape |
+| `test_constitutional` | 6 | Review present/absent, `overall_safe`, `principles_checked`, violations/warnings |
+| `test_compare` | 6 | `DebateComparison` type, both results populated, `verdict_match`, Markdown output |
+| `test_server` | 6 | `/health`, `POST /debate`, verdict field, skeptic mode, `POST /compare`, `verdict_match` |
+
+---
+
+## Constitutional Review
+
+The `--constitutional` flag adds a post-verdict audit layer inspired by Anthropic's Constitutional AI work. After the Judge delivers its verdict, a `ConstitutionalAgent` evaluates the output against four principles:
+
+1. **Honesty** — No false or misleading claims; verified facts distinguished from inference
+2. **Calibration** — Expressed confidence matches the evidence strength in the transcript
+3. **Safety** — No harmful recommendations, dangerous misconceptions, or risk-amplifying information
+4. **Uncertainty acknowledgment** — Genuine unknowns flagged rather than papered over
+
+The agent returns a `ConstitutionalReview` Pydantic model with `violations`, `warnings`, `overall_safe`, and an optional `revised_answer` when a violation makes the original answer actively misleading. PASS/FAIL is displayed in the CLI after the judge panel and is embedded in Markdown exports.
+
+---
+
+## REST API
+
+```bash
+pip install ".[server]"
+python -m src.main serve --port 8000
+```
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Liveness check |
+| `POST` | `/debate` | Run a debate; body: `{"question": "...", "skeptic_mode": "logic", "mock": true}` |
+| `POST` | `/compare` | A/B comparison; body: `{"question": "...", "mode_a": "general", "mode_b": "evidence", "mock": true}` |
+
+Both `POST` endpoints return the full Pydantic model serialized as JSON. The `mock: true` default keeps the API usable without an API key.
 
 ---
 
 ## Resume Framing
 
-- Built a multi-agent LLM debate framework using the Anthropic Claude API to evaluate whether adversarial agent interaction (Proposer–Skeptic–Judge) improves factual reliability and answer calibration over single-agent baselines across a 12-item benchmark.
+- Built a multi-agent LLM debate framework (Proposer–Skeptic–Judge) implementing Irving et al.'s scalable oversight via debate proposal; measured accuracy and calibration improvement vs. single-agent baseline across a 12-item benchmark spanning four question categories.
 
-- Designed convergence detection using heuristic concession recognition, Jaccard-similarity repetition detection, and Proposer stabilization checks to halt debates early when continued rounds are unlikely to improve the answer.
+- Designed convergence detection using heuristic concession recognition, Jaccard-similarity repetition detection, and Proposer stabilization checks — halting debates early at zero LLM cost when continued rounds are unlikely to improve the answer.
 
-- Implemented anti-recency-bias judging via per-side argument summaries, an explicit `recency_bias_check` schema field, and structured rubric prompts — reducing the risk of the Judge simply agreeing with the last speaker.
+- Implemented anti-recency-bias judging via per-side argument summaries, an explicit `recency_bias_check` schema field, and a structured four-dimension rubric — reducing the risk of the Judge collapsing its evaluation onto the final exchange.
 
-- Modeled debate transcripts as directed argument graphs using NetworkX, enabling structural analysis of rebuttal density, revision causation, cycle detection, and argument depth — metrics that reveal debate quality beyond simple accuracy.
+- Extended the system with a Constitutional Review agent (post-verdict honesty/calibration/safety audit), multi-skeptic panel debates, human-in-the-loop role substitution, A/B configuration comparison, per-category calibration scoring, and a FastAPI REST server — 72 tests, all offline via `MockLLMClient`.
+
+- Modeled debate transcripts as directed argument graphs (NetworkX) enabling structural analysis of rebuttal density, revision causation, cycle detection, and argument depth as proxies for debate quality beyond accuracy.
 
 ---
 
