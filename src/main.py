@@ -146,6 +146,7 @@ def benchmark(
     model: str = typer.Option("claude-3-5-sonnet-latest", "--model", "-m"),
     rounds: int = typer.Option(3, "--rounds", "-r"),
     mock: bool = typer.Option(False, "--mock", help="Use mock LLM (no API calls)."),
+    report: bool = typer.Option(False, "--report", help="Save Markdown calibration report."),
 ) -> None:
     """Run benchmark comparing single-agent baseline vs debate system."""
     from src.debate.benchmark import BenchmarkRunner
@@ -172,6 +173,42 @@ def benchmark(
         table.add_row(key.replace("_", " ").title(), str(value))
     console.print(table)
     console.print(f"\n[green]Results saved to {base_path}[/]")
+
+    if report:
+        from datetime import datetime
+        cal = runner.calibration_report(results)
+        lines = [
+            "# Calibration Report", "",
+            f"**Total examples:** {cal.total_examples}",
+            f"**Overall baseline accuracy:** {cal.overall_baseline_accuracy:.1%}",
+            f"**Overall debate accuracy:** {cal.overall_debate_accuracy:.1%}",
+            f"**Overall improvement rate:** {cal.overall_improvement_rate:.1%}",
+            "",
+            "## Per-Category Breakdown", "",
+            "| Category | Total | Baseline Acc | Debate Acc | Improvement |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+        for s in cal.per_category:
+            lines.append(
+                f"| {s.category} | {s.total} | {s.baseline_accuracy:.1%} "
+                f"| {s.debate_accuracy:.1%} | {s.improvement_rate:.1%} |"
+            )
+        lines += [
+            "",
+            "## Confidence Calibration", "",
+            "| Confidence Range | Count | Actual Accuracy |",
+            "| --- | --- | --- |",
+        ]
+        for b in cal.calibration_bins:
+            lines.append(
+                f"| {b.confidence_low:.1f}–{b.confidence_high:.1f} "
+                f"| {b.count} | {b.actual_accuracy:.1%} |"
+            )
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cal_path = Path(f"results/calibration_{ts}.md")
+        cal_path.parent.mkdir(parents=True, exist_ok=True)
+        cal_path.write_text("\n".join(lines), encoding="utf-8")
+        console.print(f"[green]Calibration report saved to {cal_path}[/]")
 
 
 if __name__ == "__main__":

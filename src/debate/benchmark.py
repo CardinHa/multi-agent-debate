@@ -123,6 +123,10 @@ class BenchmarkRunner:
 
         return str(base)
 
+    def calibration_report(self, results: list[BenchmarkResult]):
+        from src.debate.calibration import compute_calibration
+        return compute_calibration(results)
+
     def summary(self, results: list[BenchmarkResult]) -> dict:
         """Compute aggregate benchmark statistics."""
         total = len(results)

@@ -101,3 +101,28 @@ class BenchmarkResult(BaseModel):
     rounds_used: int
     converged: bool
     total_tokens: int
+
+
+class CategoryStats(BaseModel):
+    category: str
+    total: int
+    baseline_accuracy: float
+    debate_accuracy: float
+    improvement_rate: float
+    avg_confidence: float
+
+
+class CalibrationBin(BaseModel):
+    confidence_low: float   # lower bound of bin, e.g. 0.0
+    confidence_high: float  # upper bound, e.g. 0.2
+    count: int
+    actual_accuracy: float  # fraction of debate_correct in this bin
+
+
+class CalibrationReport(BaseModel):
+    total_examples: int
+    overall_baseline_accuracy: float
+    overall_debate_accuracy: float
+    overall_improvement_rate: float
+    per_category: list[CategoryStats]
+    calibration_bins: list[CalibrationBin]
