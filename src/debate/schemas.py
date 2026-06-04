@@ -79,6 +79,7 @@ class DebateResult(BaseModel):
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     panel_mode: bool = False
+    human_role: Optional[str] = None
 
 
 class BenchmarkExample(BaseModel):

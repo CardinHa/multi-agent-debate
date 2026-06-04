@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from datetime import datetime
+from typing import Callable
 from src.debate.schemas import (
-    AgentRole, ConvergenceReason, DebateTurn, DebateTranscript,
+    AgentRole, AgentResponse, ConvergenceReason, DebateTurn, DebateTranscript,
     DebateResult, GraphAnalysis,
 )
-from src.debate.agents import ProposerAgent, SkepticAgent
+from src.debate.agents import ProposerAgent, SkepticAgent, _format_transcript
 from src.debate.judge import JudgeAgent
 from src.debate.convergence import ConvergenceDetector
 from src.debate.graph import DebateGraphBuilder, GraphAnalyzer
@@ -39,6 +40,8 @@ class DebateOrchestrator:
         results_dir: str = "results",
         skeptic_mode: str = "general",
         skeptic_modes: list[str] | None = None,
+        human_role: str | None = None,
+        human_input_fn: Callable[[str], str] | None = None,
     ) -> None:
         if client is None:
             client = AnthropicClient(model=model, temperature=temperature)
@@ -58,6 +61,8 @@ class DebateOrchestrator:
         self.enable_graph_analysis = enable_graph_analysis
         self.save_results = save_results
         self.results_dir = Path(results_dir)
+        self._human_role = human_role
+        self._human_input_fn = human_input_fn
 
     def run(self, question: str) -> DebateResult:
         """Run a complete debate for the given question and return a DebateResult."""
@@ -68,7 +73,12 @@ class DebateOrchestrator:
         convergence_reason: ConvergenceReason | None = None
 
         # --- Round 1: Proposer initial argument ---
-        initial = self._proposer.initial_argument(question)
+        if self._human_role == "proposer" and self._human_input_fn:
+            prompt = f"Question: {question}\n\nYour turn as PROPOSER — make your opening argument:"
+            human_text = self._human_input_fn(prompt)
+            initial = AgentResponse(content=human_text, role=AgentRole.PROPOSER)
+        else:
+            initial = self._proposer.initial_argument(question)
         total_input += initial.input_tokens
         total_output += initial.output_tokens
         transcript.turns.append(
@@ -81,7 +91,16 @@ class DebateOrchestrator:
         for round_num in range(1, self.max_rounds + 1):
             # --- Each skeptic challenges in turn ---
             for skeptic in self._skeptics:
-                skeptic_resp = skeptic.challenge(question, transcript)
+                if self._human_role == "skeptic" and self._human_input_fn:
+                    history = _format_transcript(transcript)
+                    prompt = (
+                        f"Question: {question}\n\nDebate so far:\n{history}\n\n"
+                        "Your turn as SKEPTIC — challenge the proposer's argument:"
+                    )
+                    human_text = self._human_input_fn(prompt)
+                    skeptic_resp = AgentResponse(content=human_text, role=AgentRole.SKEPTIC)
+                else:
+                    skeptic_resp = skeptic.challenge(question, transcript)
                 total_input += skeptic_resp.input_tokens
                 total_output += skeptic_resp.output_tokens
                 transcript.turns.append(
@@ -91,13 +110,24 @@ class DebateOrchestrator:
                 )
 
             # Check convergence after all skeptics have spoken
-            stop, reason = self._detector.should_stop(transcript)
-            if stop:
-                converged, convergence_reason, rounds_used = True, reason, round_num
-                break
+            # Skip convergence detection for human turns
+            if not (self._human_role == "skeptic" and self._human_input_fn):
+                stop, reason = self._detector.should_stop(transcript)
+                if stop:
+                    converged, convergence_reason, rounds_used = True, reason, round_num
+                    break
 
             # --- Proposer response ---
-            proposer_resp = self._proposer.respond(question, transcript)
+            if self._human_role == "proposer" and self._human_input_fn:
+                history = _format_transcript(transcript)
+                prompt = (
+                    f"Question: {question}\n\nDebate so far:\n{history}\n\n"
+                    "Your turn as PROPOSER — respond to the skeptic's challenge:"
+                )
+                human_text = self._human_input_fn(prompt)
+                proposer_resp = AgentResponse(content=human_text, role=AgentRole.PROPOSER)
+            else:
+                proposer_resp = self._proposer.respond(question, transcript)
             total_input += proposer_resp.input_tokens
             total_output += proposer_resp.output_tokens
             transcript.turns.append(
@@ -109,10 +139,12 @@ class DebateOrchestrator:
             rounds_used = round_num
 
             # Check convergence after proposer response
-            stop, reason = self._detector.should_stop(transcript)
-            if stop:
-                converged, convergence_reason, rounds_used = True, reason, round_num
-                break
+            # Skip convergence detection for human turns
+            if not (self._human_role == "proposer" and self._human_input_fn):
+                stop, reason = self._detector.should_stop(transcript)
+                if stop:
+                    converged, convergence_reason, rounds_used = True, reason, round_num
+                    break
 
         if not converged:
             convergence_reason = ConvergenceReason.MAX_ROUNDS
@@ -141,6 +173,7 @@ class DebateOrchestrator:
             total_input_tokens=total_input,
             total_output_tokens=total_output,
             panel_mode=self._panel_mode,
+            human_role=self._human_role,
         )
 
         if self.save_results:

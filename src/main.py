@@ -49,6 +49,10 @@ def debate(
         "", "--panel",
         help="Comma-separated skeptic modes for panel debate, e.g. 'logic,evidence'",
     ),
+    human_role: Optional[str] = typer.Option(
+        None, "--human-role",
+        help="Play as 'proposer' or 'skeptic' yourself. Pauses for your typed input each turn.",
+    ),
 ) -> None:
     """Run a single multi-agent debate for a question or claim."""
     from src.debate.orchestrator import DebateOrchestrator
@@ -64,6 +68,10 @@ def debate(
 
     skeptic_modes_list = [m.strip() for m in panel.split(",") if m.strip()] if panel else None
 
+    def human_input_fn(prompt_text: str) -> str:
+        console.print(f"\n[bold cyan]{prompt_text}[/]")
+        return typer.prompt("Your response")
+
     orchestrator = DebateOrchestrator(
         client=client,
         model=model,
@@ -73,10 +81,15 @@ def debate(
         save_results=save,
         skeptic_mode=skeptic_mode,
         skeptic_modes=skeptic_modes_list,
+        human_role=human_role,
+        human_input_fn=human_input_fn if human_role else None,
     )
 
-    with console.status("[cyan]Running debate...[/]"):
+    if human_role:
         result = orchestrator.run(question)
+    else:
+        with console.status("[cyan]Running debate...[/]"):
+            result = orchestrator.run(question)
 
     # Print transcript
     console.print("\n[bold]Debate Transcript[/]\n")
