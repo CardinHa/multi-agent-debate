@@ -318,5 +318,21 @@ def compare(
         console.print(f"[green]Comparison saved to {export}[/]")
 
 
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host."),
+    port: int = typer.Option(8000, "--port", "-p", help="Bind port."),
+) -> None:
+    """Start the FastAPI REST server."""
+    try:
+        import uvicorn
+    except ImportError:
+        console.print("[red]uvicorn not installed. Run: pip install 'multi-agent-debate[server]'[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Starting debate API server on http://{host}:{port}[/]")
+    console.print("[dim]POST /debate  POST /compare  GET /health[/]")
+    uvicorn.run("src.debate.server:app", host=host, port=port, reload=False)
+
+
 if __name__ == "__main__":
     app()
