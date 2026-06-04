@@ -78,6 +78,7 @@ class DebateResult(BaseModel):
     graph_analysis: Optional[GraphAnalysis] = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
+    panel_mode: bool = False
 
 
 class BenchmarkExample(BaseModel):

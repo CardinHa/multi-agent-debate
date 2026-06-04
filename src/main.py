@@ -45,6 +45,10 @@ def debate(
         help="Skeptic personality: general | factual | logic | evidence | safety",
     ),
     export: str = typer.Option("", "--export", "-e", help="Export debate result to Markdown file"),
+    panel: str = typer.Option(
+        "", "--panel",
+        help="Comma-separated skeptic modes for panel debate, e.g. 'logic,evidence'",
+    ),
 ) -> None:
     """Run a single multi-agent debate for a question or claim."""
     from src.debate.orchestrator import DebateOrchestrator
@@ -58,6 +62,8 @@ def debate(
 
     client = MockLLMClient() if mock else None
 
+    skeptic_modes_list = [m.strip() for m in panel.split(",") if m.strip()] if panel else None
+
     orchestrator = DebateOrchestrator(
         client=client,
         model=model,
@@ -66,6 +72,7 @@ def debate(
         enable_graph_analysis=graph,
         save_results=save,
         skeptic_mode=skeptic_mode,
+        skeptic_modes=skeptic_modes_list,
     )
 
     with console.status("[cyan]Running debate...[/]"):
@@ -84,6 +91,9 @@ def debate(
         )
     else:
         console.print(f"\n[dim]Ran full {result.rounds_used} round(s) (max rounds reached).[/]")
+
+    if result.panel_mode:
+        console.print(f"[dim]Panel mode: {', '.join(m for m in skeptic_modes_list)}[/]")
 
     # Judge verdict
     j = result.judge_output

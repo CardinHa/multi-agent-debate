@@ -38,12 +38,20 @@ class DebateOrchestrator:
         save_results: bool = True,
         results_dir: str = "results",
         skeptic_mode: str = "general",
+        skeptic_modes: list[str] | None = None,
     ) -> None:
         if client is None:
             client = AnthropicClient(model=model, temperature=temperature)
         self._client = client
         self._proposer = ProposerAgent(client)
-        self._skeptic = SkepticAgent(client, mode=skeptic_mode)
+        if skeptic_modes and len(skeptic_modes) > 1:
+            self._skeptics = [SkepticAgent(client, mode=m) for m in skeptic_modes]
+            self._panel_mode = True
+        else:
+            self._skeptics = [SkepticAgent(client, mode=skeptic_mode)]
+            self._panel_mode = False
+        # Keep self._skeptic as alias for backward compat
+        self._skeptic = self._skeptics[0]
         self._judge = JudgeAgent(client)
         self._detector = ConvergenceDetector(repetition_threshold=convergence_threshold)
         self.max_rounds = max_rounds
@@ -71,17 +79,18 @@ class DebateOrchestrator:
         rounds_used = 1
 
         for round_num in range(1, self.max_rounds + 1):
-            # --- Skeptic challenge ---
-            skeptic_resp = self._skeptic.challenge(question, transcript)
-            total_input += skeptic_resp.input_tokens
-            total_output += skeptic_resp.output_tokens
-            transcript.turns.append(
-                DebateTurn(round_num=round_num, role=AgentRole.SKEPTIC,
-                           content=skeptic_resp.content,
-                           token_count=skeptic_resp.output_tokens)
-            )
+            # --- Each skeptic challenges in turn ---
+            for skeptic in self._skeptics:
+                skeptic_resp = skeptic.challenge(question, transcript)
+                total_input += skeptic_resp.input_tokens
+                total_output += skeptic_resp.output_tokens
+                transcript.turns.append(
+                    DebateTurn(round_num=round_num, role=AgentRole.SKEPTIC,
+                               content=skeptic_resp.content,
+                               token_count=skeptic_resp.output_tokens)
+                )
 
-            # Check convergence after skeptic turn
+            # Check convergence after all skeptics have spoken
             stop, reason = self._detector.should_stop(transcript)
             if stop:
                 converged, convergence_reason, rounds_used = True, reason, round_num
@@ -131,6 +140,7 @@ class DebateOrchestrator:
             graph_analysis=graph_analysis,
             total_input_tokens=total_input,
             total_output_tokens=total_output,
+            panel_mode=self._panel_mode,
         )
 
         if self.save_results:
