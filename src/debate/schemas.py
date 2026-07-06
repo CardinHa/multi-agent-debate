@@ -114,15 +114,17 @@ class BenchmarkResult(BaseModel):
     question: str
     category: str
     ground_truth: str
-    baseline_answer: str
-    debate_final_answer: str
+    baseline_answer: str = ""
+    debate_final_answer: str = ""
     baseline_correct: Optional[bool] = None
     debate_correct: Optional[bool] = None
-    debate_improved: bool
-    debate_confidence: float = Field(ge=0.0, le=1.0)
-    rounds_used: int
-    converged: bool
-    total_tokens: int
+    debate_improved: bool = False
+    debate_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    rounds_used: int = 0
+    converged: bool = False
+    total_tokens: int = 0
+    # Set when this example failed to run; other fields are placeholders.
+    error: Optional[str] = None
 
 
 class CategoryStats(BaseModel):

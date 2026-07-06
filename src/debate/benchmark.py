@@ -62,44 +62,73 @@ class BenchmarkRunner:
         self.results_dir = Path(results_dir)
 
     def run(self, dataset_path: str) -> list[BenchmarkResult]:
+        """Run the benchmark, saving each example's result incrementally as it completes.
+
+        A single example's failure (LLM error, malformed response, etc.) is recorded
+        as a BenchmarkResult with `error` set and the run continues with the next
+        example rather than aborting the whole benchmark.
+        """
         examples = _load_examples(dataset_path)
         results: list[BenchmarkResult] = []
 
-        for ex in examples:
-            print(f"  [{ex.id}] {ex.question[:60]}...")
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.last_run_timestamp = timestamp
+        incremental_path = self.results_dir / f"benchmark_{timestamp}_partial.jsonl"
 
-            # Baseline
-            baseline_answer, baseline_tokens = _baseline_answer(self._client, ex.question)
+        with incremental_path.open("a", encoding="utf-8") as incremental_file:
+            for ex in examples:
+                print(f"  [{ex.id}] {ex.question[:60]}...")
+                try:
+                    result = self._run_example(ex)
+                except Exception as exc:  # noqa: BLE001 - benchmark must not abort on one bad example
+                    print(f"  [{ex.id}] FAILED: {exc!r}")
+                    result = BenchmarkResult(
+                        example_id=ex.id,
+                        question=ex.question,
+                        category=ex.category,
+                        ground_truth=ex.ground_truth,
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
 
-            # Debate
-            debate_result = self._orchestrator.run(ex.question)
-            debate_answer = debate_result.judge_output.final_answer
-            total_tokens = (
-                debate_result.total_input_tokens + debate_result.total_output_tokens
-                + baseline_tokens
-            )
-
-            baseline_correct = _answers_match(baseline_answer, ex.ground_truth)
-            debate_correct = _answers_match(debate_answer, ex.ground_truth)
-            debate_improved = debate_correct and not baseline_correct
-
-            results.append(BenchmarkResult(
-                example_id=ex.id,
-                question=ex.question,
-                category=ex.category,
-                ground_truth=ex.ground_truth,
-                baseline_answer=baseline_answer[:400],
-                debate_final_answer=debate_answer[:400],
-                baseline_correct=baseline_correct,
-                debate_correct=debate_correct,
-                debate_improved=debate_improved,
-                debate_confidence=debate_result.judge_output.confidence,
-                rounds_used=debate_result.rounds_used,
-                converged=debate_result.converged,
-                total_tokens=total_tokens,
-            ))
+                results.append(result)
+                incremental_file.write(result.model_dump_json() + "\n")
+                incremental_file.flush()
 
         return results
+
+    def _run_example(self, ex: BenchmarkExample) -> BenchmarkResult:
+        """Run baseline + debate for a single example. May raise on LLM/parse errors."""
+        # Baseline
+        baseline_answer, baseline_tokens = _baseline_answer(self._client, ex.question)
+
+        # Debate
+        debate_result = self._orchestrator.run(ex.question)
+        debate_answer = debate_result.judge_output.final_answer
+        total_tokens = (
+            debate_result.total_input_tokens + debate_result.total_output_tokens
+            + baseline_tokens
+        )
+
+        baseline_correct = _answers_match(baseline_answer, ex.ground_truth)
+        debate_correct = _answers_match(debate_answer, ex.ground_truth)
+        debate_improved = debate_correct and not baseline_correct
+
+        return BenchmarkResult(
+            example_id=ex.id,
+            question=ex.question,
+            category=ex.category,
+            ground_truth=ex.ground_truth,
+            baseline_answer=baseline_answer[:400],
+            debate_final_answer=debate_answer[:400],
+            baseline_correct=baseline_correct,
+            debate_correct=debate_correct,
+            debate_improved=debate_improved,
+            debate_confidence=debate_result.judge_output.confidence,
+            rounds_used=debate_result.rounds_used,
+            converged=debate_result.converged,
+            total_tokens=total_tokens,
+        )
 
     def save_results(self, results: list[BenchmarkResult]) -> str:
         """Save benchmark results to CSV and JSON, return base path."""
@@ -128,20 +157,34 @@ class BenchmarkRunner:
         return compute_calibration(results)
 
     def summary(self, results: list[BenchmarkResult]) -> dict:
-        """Compute aggregate benchmark statistics."""
+        """Compute aggregate benchmark statistics.
+
+        Examples that failed to run (``result.error`` set) are counted explicitly
+        via `failed_examples` and excluded from accuracy/confidence/token
+        aggregates so a handful of errored examples don't silently skew them.
+        """
         total = len(results)
         if total == 0:
-            return {"total_examples": 0}
-        baseline_acc = sum(1 for r in results if r.baseline_correct) / total
-        debate_acc = sum(1 for r in results if r.debate_correct) / total
-        improved = sum(1 for r in results if r.debate_improved) / total
-        avg_confidence = sum(r.debate_confidence for r in results) / total
-        avg_rounds = sum(r.rounds_used for r in results) / total
-        convergence_rate = sum(1 for r in results if r.converged) / total
-        avg_tokens = sum(r.total_tokens for r in results) / total
+            return {"total_examples": 0, "failed_examples": 0}
+
+        failed = [r for r in results if r.error]
+        ok = [r for r in results if not r.error]
+        n_ok = len(ok)
+
+        if n_ok == 0:
+            return {"total_examples": total, "failed_examples": len(failed)}
+
+        baseline_acc = sum(1 for r in ok if r.baseline_correct) / n_ok
+        debate_acc = sum(1 for r in ok if r.debate_correct) / n_ok
+        improved = sum(1 for r in ok if r.debate_improved) / n_ok
+        avg_confidence = sum(r.debate_confidence for r in ok) / n_ok
+        avg_rounds = sum(r.rounds_used for r in ok) / n_ok
+        convergence_rate = sum(1 for r in ok if r.converged) / n_ok
+        avg_tokens = sum(r.total_tokens for r in ok) / n_ok
 
         return {
             "total_examples": total,
+            "failed_examples": len(failed),
             "baseline_accuracy": round(baseline_acc, 3),
             "debate_accuracy": round(debate_acc, 3),
             "debate_improvement_rate": round(improved, 3),
