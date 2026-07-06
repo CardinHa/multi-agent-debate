@@ -1,13 +1,12 @@
 """Judge agent — evaluates the full debate transcript and returns a JudgeOutput."""
 from __future__ import annotations
 
-import json
-import re
 import warnings
 
 from multi_agent_debate.debate.schemas import JudgeOutput, DebateTranscript, AgentRole, VerdictType, round_label
 from multi_agent_debate.debate.prompts import JUDGE_SYSTEM_PROMPT, JUDGE_USER_TEMPLATE
 from multi_agent_debate.debate.utils import BaseLLMClient
+from multi_agent_debate.debate.grading import extract_json as _extract_json
 
 
 def _summarize_side(transcript: DebateTranscript, role: AgentRole) -> str:
@@ -29,28 +28,6 @@ def _format_full_transcript(transcript: DebateTranscript) -> str:
         label = turn.role.value.upper()
         lines.append(f"[{label} — {round_label(turn.round_num)}]\n{turn.content}")
     return "\n\n".join(lines)
-
-
-def _extract_json(text: str) -> dict:
-    """Extract JSON from model output, stripping markdown fences if present."""
-    # Try direct parse first
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-    # Strip markdown code fences
-    cleaned = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`").strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
-    # Last resort: the model may have wrapped valid JSON in prose ("Here is
-    # the verdict: {...}"). Extract the first balanced-looking brace region.
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        return json.loads(text[start:end + 1])
-    raise json.JSONDecodeError("No JSON object found in judge output", text, 0)
 
 
 class JudgeAgent:
