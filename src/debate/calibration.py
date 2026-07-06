@@ -50,6 +50,14 @@ def compute_calibration(
         )
 
     # --- Calibration bins ---
+    # Judge outputs that failed to parse as JSON fall back to confidence=0.0,
+    # which is not a genuine calibrated confidence — including them would make
+    # the low-confidence bin look artificially well-calibrated (or miscalibrated)
+    # based on parse failures rather than real judge behavior. Exclude them and
+    # report how many were excluded.
+    calibratable = [r for r in results if not r.judge_parse_failed]
+    excluded_parse_failures = total - len(calibratable)
+
     bin_width = 1.0 / num_bins
     calibration_bins: list[CalibrationBin] = []
     for i in range(num_bins):
@@ -57,9 +65,9 @@ def compute_calibration(
         # Last bin includes upper boundary (1.0) to avoid off-by-one on confidence == 1.0
         high = round((i + 1) * bin_width, 10)
         if i == num_bins - 1:
-            in_bin = [r for r in results if low <= r.debate_confidence <= high]
+            in_bin = [r for r in calibratable if low <= r.debate_confidence <= high]
         else:
-            in_bin = [r for r in results if low <= r.debate_confidence < high]
+            in_bin = [r for r in calibratable if low <= r.debate_confidence < high]
         count = len(in_bin)
         actual_accuracy = (
             sum(1 for r in in_bin if r.debate_correct) / count if count else 0.0
@@ -80,4 +88,5 @@ def compute_calibration(
         overall_improvement_rate=overall_improvement_rate,
         per_category=per_category,
         calibration_bins=calibration_bins,
+        excluded_parse_failures=excluded_parse_failures,
     )

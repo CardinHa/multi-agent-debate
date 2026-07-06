@@ -40,7 +40,17 @@ def _extract_json(text: str) -> dict:
         pass
     # Strip markdown code fences
     cleaned = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`").strip()
-    return json.loads(cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+    # Last resort: the model may have wrapped valid JSON in prose ("Here is
+    # the verdict: {...}"). Extract the first balanced-looking brace region.
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return json.loads(text[start:end + 1])
+    raise json.JSONDecodeError("No JSON object found in judge output", text, 0)
 
 
 class JudgeAgent:
@@ -87,6 +97,7 @@ class JudgeAgent:
                 skeptic_identified_valid_flaw=False,
                 debate_improved_answer=False,
                 recency_bias_check="N/A — parse error.",
+                parse_failed=True,
             )
 
         return judge_output, inp, out

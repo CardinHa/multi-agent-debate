@@ -128,6 +128,7 @@ class BenchmarkRunner:
             rounds_used=debate_result.rounds_used,
             converged=debate_result.converged,
             total_tokens=total_tokens,
+            judge_parse_failed=debate_result.judge_output.parse_failed,
         )
 
     def save_results(self, results: list[BenchmarkResult]) -> str:
@@ -185,6 +186,7 @@ class BenchmarkRunner:
         return {
             "total_examples": total,
             "failed_examples": len(failed),
+            "judge_parse_failures": sum(1 for r in ok if r.judge_parse_failed),
             "baseline_accuracy": round(baseline_acc, 3),
             "debate_accuracy": round(debate_acc, 3),
             "debate_improvement_rate": round(improved, 3),

@@ -53,6 +53,9 @@ class JudgeOutput(BaseModel):
     skeptic_identified_valid_flaw: bool
     debate_improved_answer: bool
     recency_bias_check: str
+    # True when the Judge's raw output could not be parsed as JSON and this
+    # JudgeOutput is the uncertain-verdict fallback rather than a real judgment.
+    parse_failed: bool = False
 
 
 class GraphAnalysis(BaseModel):
@@ -125,6 +128,8 @@ class BenchmarkResult(BaseModel):
     total_tokens: int = 0
     # Set when this example failed to run; other fields are placeholders.
     error: Optional[str] = None
+    # True when the debate's JudgeOutput was an unparseable-JSON fallback.
+    judge_parse_failed: bool = False
 
 
 class CategoryStats(BaseModel):
@@ -150,3 +155,6 @@ class CalibrationReport(BaseModel):
     overall_improvement_rate: float
     per_category: list[CategoryStats]
     calibration_bins: list[CalibrationBin]
+    # Count of results excluded from calibration_bins because the Judge's
+    # output failed to parse as JSON (confidence is a meaningless 0.0 fallback).
+    excluded_parse_failures: int = 0

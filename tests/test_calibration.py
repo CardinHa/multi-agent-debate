@@ -17,6 +17,7 @@ def _make_results() -> list[BenchmarkResult]:
         baseline_correct: bool,
         debate_correct: bool,
         debate_confidence: float,
+        judge_parse_failed: bool = False,
     ) -> BenchmarkResult:
         return BenchmarkResult(
             example_id=eid,
@@ -32,6 +33,7 @@ def _make_results() -> list[BenchmarkResult]:
             rounds_used=2,
             converged=True,
             total_tokens=100,
+            judge_parse_failed=judge_parse_failed,
         )
 
     return [
@@ -84,3 +86,25 @@ def test_overall_accuracy_matches_manual():
     report = compute_calibration(results)
     manual = sum(1 for r in results if r.debate_correct) / len(results)
     assert abs(report.overall_debate_accuracy - manual) < 0.001
+
+
+def test_parse_failures_excluded_from_calibration_bins():
+    results = _make_results()
+    # Mark one result as a judge parse failure with a 0.0 confidence — it
+    # should not land in (or inflate/deflate) any calibration bin.
+    failed = results[0].model_copy(update={"judge_parse_failed": True, "debate_confidence": 0.0})
+    results_with_failure = [failed] + results[1:]
+
+    baseline_report = compute_calibration(results)
+    report_with_failure = compute_calibration(results_with_failure)
+
+    assert report_with_failure.excluded_parse_failures == 1
+    total_binned = sum(b.count for b in report_with_failure.calibration_bins)
+    assert total_binned == len(results_with_failure) - 1
+    # Baseline (no parse failures) excludes nothing.
+    assert baseline_report.excluded_parse_failures == 0
+
+
+def test_excluded_parse_failures_defaults_to_zero():
+    report = compute_calibration(_make_results())
+    assert report.excluded_parse_failures == 0
