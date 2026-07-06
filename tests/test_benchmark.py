@@ -5,9 +5,9 @@ import json
 
 import pytest
 
-from src.debate.benchmark import BenchmarkRunner, _answers_match
-from src.debate.utils import BaseLLMClient, MockLLMClient
-from src.debate.schemas import BenchmarkExample
+from multi_agent_debate.debate.benchmark import BenchmarkRunner, _answers_match
+from multi_agent_debate.debate.utils import BaseLLMClient, MockLLMClient
+from multi_agent_debate.debate.schemas import BenchmarkExample
 
 
 class _FailOnKeywordClient(BaseLLMClient):
@@ -76,7 +76,7 @@ def test_summary_counts_failures_explicitly(tmp_path):
 
 
 def test_anthropic_client_raises_clear_error_on_empty_content():
-    from src.debate.utils import AnthropicClient
+    from multi_agent_debate.debate.utils import AnthropicClient
 
     class _FakeUsage:
         input_tokens = 5

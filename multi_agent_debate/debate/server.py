@@ -10,11 +10,11 @@ try:
 except ImportError:
     raise ImportError("Install server dependencies: pip install 'multi-agent-debate[server]'")
 
-from src.debate.schemas import DebateResult, DebateComparison
-from src.debate.orchestrator import DebateOrchestrator
-from src.debate.compare import run_comparison
-from src.debate.utils import MockLLMClient
-from src.debate.prompts import SKEPTIC_MODE_PROMPTS
+from multi_agent_debate.debate.schemas import DebateResult, DebateComparison
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.compare import run_comparison
+from multi_agent_debate.debate.utils import MockLLMClient
+from multi_agent_debate.debate.prompts import SKEPTIC_MODE_PROMPTS
 
 
 app = FastAPI(
@@ -23,7 +23,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Known-valid skeptic personality modes (see src.debate.prompts.SKEPTIC_MODE_PROMPTS).
+# Known-valid skeptic personality modes (see multi_agent_debate.debate.prompts.SKEPTIC_MODE_PROMPTS).
 _VALID_SKEPTIC_MODES = sorted(SKEPTIC_MODE_PROMPTS)
 
 # Question length cap — generous for a debate claim/question, but bounds

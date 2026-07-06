@@ -1,9 +1,9 @@
 """Tests for specialized SkepticAgent modes."""
 import pytest
-from src.debate.agents import SkepticAgent
-from src.debate.prompts import SKEPTIC_MODE_PROMPTS
-from src.debate.schemas import AgentRole, DebateTranscript, DebateTurn
-from src.debate.utils import MockLLMClient
+from multi_agent_debate.debate.agents import SkepticAgent
+from multi_agent_debate.debate.prompts import SKEPTIC_MODE_PROMPTS
+from multi_agent_debate.debate.schemas import AgentRole, DebateTranscript, DebateTurn
+from multi_agent_debate.debate.utils import MockLLMClient
 
 
 def test_all_modes_have_distinct_prompts():

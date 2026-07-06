@@ -1,7 +1,7 @@
 """Unit tests for ConvergenceDetector."""
 import pytest
-from src.debate.convergence import ConvergenceDetector
-from src.debate.schemas import DebateTurn, DebateTranscript, AgentRole
+from multi_agent_debate.debate.convergence import ConvergenceDetector
+from multi_agent_debate.debate.schemas import DebateTurn, DebateTranscript, AgentRole
 
 
 def _make_transcript(*contents: tuple) -> DebateTranscript:

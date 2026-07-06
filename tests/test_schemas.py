@@ -1,6 +1,6 @@
 """Tests for Pydantic schema validation."""
 import pytest
-from src.debate.schemas import (
+from multi_agent_debate.debate.schemas import (
     AgentRole, ConvergenceReason, VerdictType, DebateTurn, DebateTranscript,
     AgentResponse, JudgeOutput, GraphAnalysis, DebateResult,
     BenchmarkExample, BenchmarkResult,

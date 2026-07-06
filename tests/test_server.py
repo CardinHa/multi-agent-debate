@@ -3,7 +3,7 @@ import pytest
 
 try:
     from fastapi.testclient import TestClient
-    from src.debate.server import app
+    from multi_agent_debate.debate.server import app
     _fastapi_available = True
 except ImportError:
     _fastapi_available = False

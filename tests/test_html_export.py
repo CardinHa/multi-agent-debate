@@ -1,5 +1,5 @@
 import pytest
-from src.debate.schemas import (
+from multi_agent_debate.debate.schemas import (
     AgentRole, VerdictType, ConvergenceReason,
     DebateTurn, DebateTranscript, JudgeOutput, GraphAnalysis, DebateResult
 )
@@ -44,13 +44,13 @@ def _make_result(with_graph: bool = True) -> DebateResult:
 
 
 def test_returns_string():
-    from src.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.html_export import debate_to_html
     html = debate_to_html(_make_result())
     assert isinstance(html, str) and len(html) > 0
 
 
 def test_is_valid_html_structure():
-    from src.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.html_export import debate_to_html
     html = debate_to_html(_make_result())
     assert "<!DOCTYPE html>" in html
     assert "<html" in html
@@ -58,39 +58,39 @@ def test_is_valid_html_structure():
 
 
 def test_question_in_title_and_body():
-    from src.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.html_export import debate_to_html
     html = debate_to_html(_make_result())
     assert "Is AI safe?" in html
 
 
 def test_role_classes_present():
-    from src.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.html_export import debate_to_html
     html = debate_to_html(_make_result())
     assert "turn-proposer" in html
     assert "turn-skeptic" in html
 
 
 def test_verdict_badge_present():
-    from src.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.html_export import debate_to_html
     html = debate_to_html(_make_result())
     assert "verdict-uncertain" in html or "uncertain" in html.lower()
 
 
 def test_graph_table_when_present():
-    from src.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.html_export import debate_to_html
     html = debate_to_html(_make_result(with_graph=True))
     assert "num_turns" in html or "Num Turns" in html or "<table" in html
 
 
 def test_no_graph_table_when_absent():
-    from src.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.html_export import debate_to_html
     html = debate_to_html(_make_result(with_graph=False))
     assert "Graph Metrics" not in html
 
 
 def test_html_escaped_content():
-    from src.debate.html_export import debate_to_html
-    from src.debate.schemas import DebateTurn, DebateTranscript, JudgeOutput, VerdictType, DebateResult
+    from multi_agent_debate.debate.html_export import debate_to_html
+    from multi_agent_debate.debate.schemas import DebateTurn, DebateTranscript, JudgeOutput, VerdictType, DebateResult
     transcript = DebateTranscript(
         question="Is <b>AI</b> safe?",
         turns=[DebateTurn(round_num=1, role=AgentRole.PROPOSER, content="<script>alert(1)</script>", token_count=5)],

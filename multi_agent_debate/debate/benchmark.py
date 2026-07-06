@@ -4,10 +4,10 @@ import json
 import re
 from pathlib import Path
 from datetime import datetime
-from src.debate.schemas import BenchmarkExample, BenchmarkResult, AgentRole
-from src.debate.orchestrator import DebateOrchestrator
-from src.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
-from src.debate.prompts import PROPOSER_SYSTEM_PROMPT
+from multi_agent_debate.debate.schemas import BenchmarkExample, BenchmarkResult, AgentRole
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
+from multi_agent_debate.debate.prompts import PROPOSER_SYSTEM_PROMPT
 
 
 def _load_examples(path: str) -> list[BenchmarkExample]:
@@ -198,7 +198,7 @@ class BenchmarkRunner:
         return str(base)
 
     def calibration_report(self, results: list[BenchmarkResult]):
-        from src.debate.calibration import compute_calibration
+        from multi_agent_debate.debate.calibration import compute_calibration
         return compute_calibration(results)
 
     def summary(self, results: list[BenchmarkResult]) -> dict:

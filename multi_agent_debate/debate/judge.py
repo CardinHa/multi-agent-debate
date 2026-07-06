@@ -5,9 +5,9 @@ import json
 import re
 import warnings
 
-from src.debate.schemas import JudgeOutput, DebateTranscript, AgentRole, VerdictType, round_label
-from src.debate.prompts import JUDGE_SYSTEM_PROMPT, JUDGE_USER_TEMPLATE
-from src.debate.utils import BaseLLMClient
+from multi_agent_debate.debate.schemas import JudgeOutput, DebateTranscript, AgentRole, VerdictType, round_label
+from multi_agent_debate.debate.prompts import JUDGE_SYSTEM_PROMPT, JUDGE_USER_TEMPLATE
+from multi_agent_debate.debate.utils import BaseLLMClient
 
 
 def _summarize_side(transcript: DebateTranscript, role: AgentRole) -> str:

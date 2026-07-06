@@ -1,8 +1,8 @@
 """Unit tests for debate graph construction and analysis."""
 import pytest
 import networkx as nx
-from src.debate.graph import DebateGraphBuilder, GraphAnalyzer
-from src.debate.schemas import DebateTurn, DebateTranscript, AgentRole
+from multi_agent_debate.debate.graph import DebateGraphBuilder, GraphAnalyzer
+from multi_agent_debate.debate.schemas import DebateTurn, DebateTranscript, AgentRole
 
 
 def _sample_transcript() -> DebateTranscript:

@@ -1,8 +1,8 @@
 """A/B debate comparison — run same question under two configs and diff results."""
 from __future__ import annotations
-from src.debate.schemas import DebateComparison, DebateResult
-from src.debate.orchestrator import DebateOrchestrator
-from src.debate.utils import BaseLLMClient
+from multi_agent_debate.debate.schemas import DebateComparison, DebateResult
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.utils import BaseLLMClient
 
 
 def run_comparison(

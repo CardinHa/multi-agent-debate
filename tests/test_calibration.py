@@ -1,8 +1,8 @@
 """Tests for calibration scoring layer — written before implementation (TDD)."""
 from __future__ import annotations
 import pytest
-from src.debate.schemas import BenchmarkResult, CalibrationReport
-from src.debate.calibration import compute_calibration
+from multi_agent_debate.debate.schemas import BenchmarkResult, CalibrationReport
+from multi_agent_debate.debate.calibration import compute_calibration
 
 
 def _make_results() -> list[BenchmarkResult]:

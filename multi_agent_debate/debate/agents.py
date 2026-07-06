@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import warnings
 
-from src.debate.schemas import AgentResponse, AgentRole, DebateTranscript, round_label
-from src.debate.prompts import PROPOSER_SYSTEM_PROMPT, SKEPTIC_MODE_PROMPTS
-from src.debate.utils import BaseLLMClient
+from multi_agent_debate.debate.schemas import AgentResponse, AgentRole, DebateTranscript, round_label
+from multi_agent_debate.debate.prompts import PROPOSER_SYSTEM_PROMPT, SKEPTIC_MODE_PROMPTS
+from multi_agent_debate.debate.utils import BaseLLMClient
 
 
 def _format_transcript(transcript: DebateTranscript) -> str:
@@ -90,8 +90,8 @@ class ConstitutionalAgent:
         self._client = client
 
     def review(self, judge_output, transcript: DebateTranscript):
-        from src.debate.schemas import ConstitutionalReview
-        from src.debate.prompts import CONSTITUTIONAL_SYSTEM_PROMPT
+        from multi_agent_debate.debate.schemas import ConstitutionalReview
+        from multi_agent_debate.debate.prompts import CONSTITUTIONAL_SYSTEM_PROMPT
         user_prompt = (
             f"Judge's final answer: {judge_output.final_answer}\n"
             f"Verdict: {judge_output.verdict.value} (confidence: {judge_output.confidence:.0%})\n"

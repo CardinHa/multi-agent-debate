@@ -1,9 +1,9 @@
 import pytest
-from src.debate.schemas import (
+from multi_agent_debate.debate.schemas import (
     AgentRole, VerdictType, ConvergenceReason,
     DebateTurn, DebateTranscript, JudgeOutput, GraphAnalysis, DebateResult
 )
-from src.debate.export import debate_to_markdown
+from multi_agent_debate.debate.export import debate_to_markdown
 
 
 def _make_result(with_graph: bool = True) -> DebateResult:

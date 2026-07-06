@@ -5,9 +5,9 @@ import json
 
 import pytest
 
-from src.debate.judge import JudgeAgent, _extract_json
-from src.debate.schemas import DebateTranscript, DebateTurn, AgentRole
-from src.debate.utils import BaseLLMClient
+from multi_agent_debate.debate.judge import JudgeAgent, _extract_json
+from multi_agent_debate.debate.schemas import DebateTranscript, DebateTurn, AgentRole
+from multi_agent_debate.debate.utils import BaseLLMClient
 
 
 _VALID_JUDGE_JSON = {

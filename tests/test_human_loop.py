@@ -1,8 +1,8 @@
 """Tests for Feature C: Human-in-the-Loop Mode."""
 import pytest
-from src.debate.utils import MockLLMClient
-from src.debate.orchestrator import DebateOrchestrator
-from src.debate.schemas import AgentRole
+from multi_agent_debate.debate.utils import MockLLMClient
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.schemas import AgentRole
 
 
 def _human_fn(prompt: str) -> str:

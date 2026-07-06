@@ -1,7 +1,7 @@
 """Calibration scoring layer — per-category accuracy and confidence calibration bins."""
 from __future__ import annotations
 from collections import defaultdict
-from src.debate.schemas import BenchmarkResult, CalibrationReport, CategoryStats, CalibrationBin
+from multi_agent_debate.debate.schemas import BenchmarkResult, CalibrationReport, CategoryStats, CalibrationBin
 
 
 def compute_calibration(

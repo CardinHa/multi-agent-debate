@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 import typer
 from rich.console import Console
-from src.debate.utils import DEFAULT_MODEL
+from multi_agent_debate.debate.utils import DEFAULT_MODEL
 from rich.panel import Panel
 from rich.table import Table
 from rich import box
@@ -23,7 +23,7 @@ console = Console()
 
 
 def _print_turn(role: str, round_num: int, content: str) -> None:
-    from src.debate.schemas import round_label
+    from multi_agent_debate.debate.schemas import round_label
     colors = {"proposer": "green", "skeptic": "red", "judge": "blue"}
     color = colors.get(role.lower(), "white")
     title = f"[bold {color}]{role.upper()}[/] — {round_label(round_num)}"
@@ -59,8 +59,8 @@ def debate(
     constitutional: bool = typer.Option(False, "--constitutional", "-C", help="Run constitutional review of judge output."),
 ) -> None:
     """Run a single multi-agent debate for a question or claim."""
-    from src.debate.orchestrator import DebateOrchestrator
-    from src.debate.utils import MockLLMClient
+    from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+    from multi_agent_debate.debate.utils import MockLLMClient
 
     console.print()
     console.rule("[bold cyan]Multi-Agent Debate System[/]")
@@ -158,7 +158,7 @@ def debate(
         console.print(table)
 
         if graph_viz:
-            from src.debate.graph import DebateGraphBuilder, GraphAnalyzer
+            from multi_agent_debate.debate.graph import DebateGraphBuilder, GraphAnalyzer
             builder = DebateGraphBuilder()
             nx_graph = builder.build(result.transcript)
             analyzer = GraphAnalyzer(nx_graph, result.transcript)
@@ -173,14 +173,14 @@ def debate(
     )
 
     if export:
-        from src.debate.export import debate_to_markdown
+        from multi_agent_debate.debate.export import debate_to_markdown
         export_path = Path(export)
         export_path.parent.mkdir(parents=True, exist_ok=True)
         export_path.write_text(debate_to_markdown(result), encoding="utf-8")
         console.print(f"[green]Exported to {export}[/green]")
 
     if export_html:
-        from src.debate.html_export import debate_to_html
+        from multi_agent_debate.debate.html_export import debate_to_html
         html_path = Path(export_html)
         html_path.parent.mkdir(parents=True, exist_ok=True)
         html_path.write_text(debate_to_html(result), encoding="utf-8")
@@ -198,8 +198,8 @@ def benchmark(
     report: bool = typer.Option(False, "--report", help="Save Markdown calibration report."),
 ) -> None:
     """Run benchmark comparing single-agent baseline vs debate system."""
-    from src.debate.benchmark import BenchmarkRunner
-    from src.debate.utils import MockLLMClient
+    from multi_agent_debate.debate.benchmark import BenchmarkRunner
+    from multi_agent_debate.debate.utils import MockLLMClient
 
     console.print()
     console.rule("[bold cyan]Benchmark: Debate vs Baseline[/]")
@@ -270,8 +270,8 @@ def compare(
     export: str = typer.Option("", "--export", "-e", help="Save comparison Markdown to file."),
 ) -> None:
     """Run the same question under two skeptic configurations and compare results."""
-    from src.debate.compare import run_comparison, comparison_to_markdown
-    from src.debate.utils import MockLLMClient
+    from multi_agent_debate.debate.compare import run_comparison, comparison_to_markdown
+    from multi_agent_debate.debate.utils import MockLLMClient
 
     client = MockLLMClient() if mock else None
 
@@ -333,7 +333,7 @@ def serve(
         raise typer.Exit(1)
     console.print(f"[green]Starting debate API server on http://{host}:{port}[/]")
     console.print("[dim]POST /debate  POST /compare  GET /health[/]")
-    uvicorn.run("src.debate.server:app", host=host, port=port, reload=False)
+    uvicorn.run("multi_agent_debate.debate.server:app", host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":

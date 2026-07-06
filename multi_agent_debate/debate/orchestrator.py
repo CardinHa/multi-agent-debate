@@ -5,15 +5,15 @@ import re
 from pathlib import Path
 from datetime import datetime
 from typing import Callable
-from src.debate.schemas import (
+from multi_agent_debate.debate.schemas import (
     AgentRole, AgentResponse, ConvergenceReason, DebateTurn, DebateTranscript,
     DebateResult, GraphAnalysis, ConstitutionalReview,
 )
-from src.debate.agents import ProposerAgent, SkepticAgent, ConstitutionalAgent, _format_transcript
-from src.debate.judge import JudgeAgent
-from src.debate.convergence import ConvergenceDetector
-from src.debate.graph import DebateGraphBuilder, GraphAnalyzer
-from src.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
+from multi_agent_debate.debate.agents import ProposerAgent, SkepticAgent, ConstitutionalAgent, _format_transcript
+from multi_agent_debate.debate.judge import JudgeAgent
+from multi_agent_debate.debate.convergence import ConvergenceDetector
+from multi_agent_debate.debate.graph import DebateGraphBuilder, GraphAnalyzer
+from multi_agent_debate.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
 
 
 class DebateOrchestrator:

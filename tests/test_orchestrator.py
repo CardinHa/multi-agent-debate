@@ -4,9 +4,9 @@ import re
 
 import pytest
 
-from src.debate.orchestrator import DebateOrchestrator
-from src.debate.utils import MockLLMClient
-from src.debate.schemas import AgentRole, ConvergenceReason
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.utils import MockLLMClient
+from multi_agent_debate.debate.schemas import AgentRole, ConvergenceReason
 
 
 def test_orchestrator_runs_end_to_end():
