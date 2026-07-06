@@ -196,17 +196,55 @@ def benchmark(
     rounds: int = typer.Option(3, "--rounds", "-r"),
     mock: bool = typer.Option(False, "--mock", help="Use mock LLM (no API calls)."),
     report: bool = typer.Option(False, "--report", help="Save Markdown calibration report."),
+    grader: str = typer.Option(
+        "heuristic", "--grader",
+        help=(
+            "Correctness grader: 'heuristic' (default, free, polarity/keyword-based) "
+            "or 'llm' (entailment-style LLM judge — spends an extra API call per "
+            "answer in non-mock mode; see README 'LLM grading')."
+        ),
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y",
+        help="Skip the interactive cost confirmation for --grader llm in non-mock mode.",
+    ),
 ) -> None:
     """Run benchmark comparing single-agent baseline vs debate system."""
-    from multi_agent_debate.debate.benchmark import BenchmarkRunner
+    from multi_agent_debate.debate.benchmark import (
+        BenchmarkRunner, count_examples, GRADER_CALLS_PER_EXAMPLE, ROUGH_TOKENS_PER_GRADER_CALL,
+    )
     from multi_agent_debate.debate.utils import MockLLMClient
+
+    if grader not in ("heuristic", "llm"):
+        raise typer.BadParameter("must be 'heuristic' or 'llm'", param_hint="--grader")
 
     console.print()
     console.rule("[bold cyan]Benchmark: Debate vs Baseline[/]")
-    console.print(f"Dataset: [cyan]{dataset}[/]  Model: [cyan]{model}[/]  Max rounds: [cyan]{rounds}[/]\n")
+    console.print(
+        f"Dataset: [cyan]{dataset}[/]  Model: [cyan]{model}[/]  Max rounds: [cyan]{rounds}[/]  "
+        f"Grader: [cyan]{grader}[/]\n"
+    )
+
+    # Cost guardrail: LLM grading spends real API calls. Require an explicit
+    # --yes or an interactive confirmation before spending, unless we're in
+    # --mock mode (no API calls happen there regardless of grader choice).
+    if grader == "llm" and not mock:
+        num_examples = count_examples(dataset)
+        total_calls = num_examples * GRADER_CALLS_PER_EXAMPLE
+        rough_tokens = total_calls * ROUGH_TOKENS_PER_GRADER_CALL
+        console.print(
+            f"[yellow]--grader llm will make ~{total_calls} extra API call(s) "
+            f"({num_examples} example(s) x {GRADER_CALLS_PER_EXAMPLE} grader calls each — "
+            f"one for the baseline answer, one for the debate's final answer), "
+            f"~{rough_tokens:,} tokens (rough estimate — actual usage will vary). "
+            "This spends API credits beyond the debate/baseline calls themselves.[/]"
+        )
+        if not yes and not typer.confirm("Continue with LLM grading?"):
+            console.print("[red]Aborted.[/] Pass --yes to skip this prompt, or omit --grader llm.")
+            raise typer.Exit(1)
 
     client = MockLLMClient() if mock else None
-    runner = BenchmarkRunner(client=client, model=model, max_rounds=rounds)
+    runner = BenchmarkRunner(client=client, model=model, max_rounds=rounds, grader=grader)
 
     with console.status("[cyan]Running benchmark...[/]"):
         results = runner.run(dataset)

@@ -108,6 +108,15 @@ class MockLLMClient(BaseLLMClient):
             "overall_safe": True,
             "revised_answer": None,
         }),
+        # Opt-in LLM benchmark grader (see debate/grading.py). The mock can't
+        # actually reason about whether two answers agree, so it deterministically
+        # reports a match — good enough to exercise the grader-metadata plumbing
+        # (grader field, token accounting, agreement rate) offline in tests.
+        "You are an entailment-style grader": json.dumps({
+            "match": True,
+            "confidence": 0.75,
+            "reasoning": "Mock grader: deterministic match for offline testing.",
+        }),
     }
 
     def call(self, system: str, user: str) -> tuple[str, int, int]:

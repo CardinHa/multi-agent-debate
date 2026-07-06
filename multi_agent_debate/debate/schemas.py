@@ -24,6 +24,15 @@ class VerdictType(str, Enum):
     UNCERTAIN = "uncertain"
 
 
+class GraderType(str, Enum):
+    """Which grader produced a correctness verdict for a benchmark example."""
+    HEURISTIC = "heuristic"
+    LLM = "llm"
+    # LLM grading was requested but its output failed to parse; the heuristic
+    # grader's verdict was used instead.
+    HEURISTIC_FALLBACK = "heuristic_fallback"
+
+
 def round_label(round_num: int) -> str:
     """Human-readable label for a turn's round number.
 
@@ -65,6 +74,19 @@ class JudgeOutput(BaseModel):
     # True when the Judge's raw output could not be parsed as JSON and this
     # JudgeOutput is the uncertain-verdict fallback rather than a real judgment.
     parse_failed: bool = False
+
+
+class GradeResult(BaseModel):
+    """Output of grading a single candidate answer against a ground truth."""
+    match: bool
+    confidence: float = Field(ge=0.0, le=1.0)
+    reasoning: str
+    grader: GraderType
+    # Token usage for the grading call itself (0 when no LLM call was made,
+    # e.g. this GradeResult was never produced — heuristic-only grading
+    # doesn't construct a GradeResult at all).
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class GraphAnalysis(BaseModel):
@@ -141,6 +163,16 @@ class BenchmarkResult(BaseModel):
     error: Optional[str] = None
     # True when the debate's JudgeOutput was an unparseable-JSON fallback.
     judge_parse_failed: bool = False
+    # Which grader actually produced baseline_correct / debate_correct.
+    # Both default to "heuristic" — the pre-existing keyword/polarity grader —
+    # so results from runs that never opted into --grader llm are unaffected.
+    baseline_grader: GraderType = GraderType.HEURISTIC
+    debate_grader: GraderType = GraderType.HEURISTIC
+    # The heuristic grader's verdict, computed alongside the LLM grader purely
+    # for agreement-rate reporting (it's free — no extra API call). Only
+    # populated when grader="llm" was requested; None otherwise.
+    baseline_heuristic_match: Optional[bool] = None
+    debate_heuristic_match: Optional[bool] = None
 
 
 class CategoryStats(BaseModel):

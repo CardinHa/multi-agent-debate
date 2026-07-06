@@ -288,6 +288,36 @@ The benchmark runs each claim through two pipelines in sequence and compares the
 
 Results are saved as both CSV and JSON with a timestamp-stamped filename under `results/`.
 
+### LLM grading (opt-in)
+
+The heuristic grader above is fast, free, and offline-testable, but it is still a crude proxy for factual correctness — polarity-aware keyword matching can be fooled by phrasing it wasn't designed to handle, and it has no way to recognize that two differently-worded answers reach the same substantive conclusion. An audit of this benchmark's original keyword-overlap grader flagged it as untrustworthy for anything beyond a rough signal; the polarity-aware heuristic here is an improvement, but the more reliable fix is an actual model judging the answer.
+
+`--grader llm` switches to an entailment-style LLM judge (`grade_with_llm` in `debate/grading.py`): it asks the model whether the candidate answer is factually consistent with the ground truth, at `temperature=0` for determinism, and returns a structured `{"match": bool, "confidence": float, "reasoning": str}` verdict. It is **strictly opt-in** — the default remains the free heuristic grader, and nothing about LLM grading changes behavior unless you ask for it:
+
+```bash
+debate benchmark --dataset data/sample_claims.jsonl --grader llm
+```
+
+Because this spends real API calls (one grading call for the baseline answer, one for the debate's final answer — per example), the CLI prints an upfront cost estimate and requires confirmation before proceeding:
+
+```
+--grader llm will make ~24 extra API call(s) (12 example(s) x 2 grader calls each —
+one for the baseline answer, one for the debate's final answer), ~16,800 tokens
+(rough estimate — actual usage will vary). This spends API credits beyond the
+debate/baseline calls themselves.
+Continue with LLM grading? [y/N]:
+```
+
+Pass `--yes` / `-y` to skip the interactive prompt (e.g. in CI or scripts). `--mock` bypasses the guardrail entirely since no API calls occur in mock mode.
+
+When `--grader llm` is active:
+
+- Each `BenchmarkResult` records `baseline_grader` / `debate_grader` (`"llm"`, or `"heuristic_fallback"` if the model's output failed to parse as JSON — the grader never raises, it silently falls back to the heuristic instead).
+- The heuristic verdict is computed alongside the LLM verdict for every graded answer at no extra cost (no additional API call), so the summary can report `heuristic_llm_agreement_rate` — how often the two graders agree — plus `llm_graded_examples` and `grader_fallback_count`.
+- Grader API calls are folded into each result's `total_tokens`, so token accounting reflects the true cost of the run.
+
+None of these fields or summary keys appear when running with the default `--grader heuristic` — the JSON/CSV schema is additive-only.
+
 ---
 
 ## Graph Analysis
