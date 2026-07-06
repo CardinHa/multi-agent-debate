@@ -1,11 +1,11 @@
 """Multi-Agent Debate System — public API."""
-from src.debate.orchestrator import DebateOrchestrator
-from src.debate.benchmark import BenchmarkRunner
-from src.debate.schemas import (
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.benchmark import BenchmarkRunner
+from multi_agent_debate.debate.schemas import (
     DebateResult, BenchmarkResult, JudgeOutput,
     DebateTurn, DebateTranscript, GraphAnalysis,
 )
-from src.debate.utils import AnthropicClient, MockLLMClient
+from multi_agent_debate.debate.utils import AnthropicClient, MockLLMClient
 
 __all__ = [
     "DebateOrchestrator",

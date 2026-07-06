@@ -1,10 +1,10 @@
 """Debate graph construction and analysis using NetworkX."""
 from __future__ import annotations
 import networkx as nx
-from src.debate.schemas import (
+from multi_agent_debate.debate.schemas import (
     DebateTranscript, GraphAnalysis, AgentRole, DebateTurn
 )
-from src.debate.convergence import ConvergenceDetector
+from multi_agent_debate.debate.convergence import ConvergenceDetector
 
 
 def _edge_type(source: DebateTurn, target: DebateTurn) -> str:

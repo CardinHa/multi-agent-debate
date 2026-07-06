@@ -1,7 +1,7 @@
 """Unit tests for ConvergenceDetector."""
 import pytest
-from src.debate.convergence import ConvergenceDetector
-from src.debate.schemas import DebateTurn, DebateTranscript, AgentRole
+from multi_agent_debate.debate.convergence import ConvergenceDetector
+from multi_agent_debate.debate.schemas import DebateTurn, DebateTranscript, AgentRole
 
 
 def _make_transcript(*contents: tuple) -> DebateTranscript:
@@ -21,6 +21,16 @@ def test_detect_concession_positive():
 def test_detect_concession_negative():
     detector = ConvergenceDetector()
     assert detector.detect_concession("I maintain my position.") is False
+
+
+def test_fair_point_is_not_a_concession():
+    # prompts.py explicitly names "that's a fair point, but…" as the *false*
+    # concession phrase the Proposer may use, so it must not halt the debate.
+    detector = ConvergenceDetector()
+    assert detector.detect_concession(
+        "That's a fair point, but my conclusion still stands because..."
+    ) is False
+    assert detector.detect_concession("That is a fair point, however X.") is False
 
 
 def test_detect_repetition_same_text():

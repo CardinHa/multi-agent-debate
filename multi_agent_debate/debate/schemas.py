@@ -24,6 +24,15 @@ class VerdictType(str, Enum):
     UNCERTAIN = "uncertain"
 
 
+def round_label(round_num: int) -> str:
+    """Human-readable label for a turn's round number.
+
+    Round 0 is the Proposer's opening argument; rounds 1..N are the
+    skeptic/proposer exchanges.
+    """
+    return "Opening" if round_num == 0 else f"Round {round_num}"
+
+
 class DebateTurn(BaseModel):
     round_num: int
     role: AgentRole
@@ -53,6 +62,9 @@ class JudgeOutput(BaseModel):
     skeptic_identified_valid_flaw: bool
     debate_improved_answer: bool
     recency_bias_check: str
+    # True when the Judge's raw output could not be parsed as JSON and this
+    # JudgeOutput is the uncertain-verdict fallback rather than a real judgment.
+    parse_failed: bool = False
 
 
 class GraphAnalysis(BaseModel):
@@ -114,15 +126,21 @@ class BenchmarkResult(BaseModel):
     question: str
     category: str
     ground_truth: str
-    baseline_answer: str
-    debate_final_answer: str
+    baseline_answer: str = ""
+    debate_final_answer: str = ""
     baseline_correct: Optional[bool] = None
     debate_correct: Optional[bool] = None
-    debate_improved: bool
-    debate_confidence: float = Field(ge=0.0, le=1.0)
-    rounds_used: int
-    converged: bool
-    total_tokens: int
+    debate_improved: bool = False
+    # True when the baseline answer was correct but the debate's final answer was not.
+    debate_regressed: bool = False
+    debate_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    rounds_used: int = 0
+    converged: bool = False
+    total_tokens: int = 0
+    # Set when this example failed to run; other fields are placeholders.
+    error: Optional[str] = None
+    # True when the debate's JudgeOutput was an unparseable-JSON fallback.
+    judge_parse_failed: bool = False
 
 
 class CategoryStats(BaseModel):
@@ -148,3 +166,6 @@ class CalibrationReport(BaseModel):
     overall_improvement_rate: float
     per_category: list[CategoryStats]
     calibration_bins: list[CalibrationBin]
+    # Count of results excluded from calibration_bins because the Judge's
+    # output failed to parse as JSON (confidence is a meaningless 0.0 fallback).
+    excluded_parse_failures: int = 0

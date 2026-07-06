@@ -1,7 +1,12 @@
 """Integration test for DebateOrchestrator using MockLLMClient."""
-from src.debate.orchestrator import DebateOrchestrator
-from src.debate.utils import MockLLMClient
-from src.debate.schemas import ConvergenceReason
+import json
+import re
+
+import pytest
+
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.utils import MockLLMClient
+from multi_agent_debate.debate.schemas import AgentRole, ConvergenceReason
 
 
 def test_orchestrator_runs_end_to_end():
@@ -48,3 +53,58 @@ def test_orchestrator_graph_analysis_disabled():
     )
     result = orchestrator.run("Test?")
     assert result.graph_analysis is None
+
+
+def test_opening_argument_is_round_zero():
+    client = MockLLMClient()
+    orchestrator = DebateOrchestrator(
+        client=client,
+        max_rounds=2,
+        save_results=False,
+        enable_graph_analysis=False,
+    )
+    result = orchestrator.run("Is the sky blue?")
+    turns = result.transcript.turns
+    # Opening proposer statement is round 0; the loop's first exchange is round 1.
+    assert turns[0].role == AgentRole.PROPOSER
+    assert turns[0].round_num == 0
+    assert turns[1].round_num == 1
+    # No other turn shares the opening's round-0 label
+    assert all(t.round_num >= 1 for t in turns[1:])
+
+
+@pytest.mark.parametrize("bad_rounds", [0, -1, -5])
+def test_max_rounds_below_one_raises_value_error(bad_rounds):
+    with pytest.raises(ValueError, match="max_rounds"):
+        DebateOrchestrator(
+            client=MockLLMClient(),
+            max_rounds=bad_rounds,
+            save_results=False,
+            enable_graph_analysis=False,
+        )
+
+
+def test_save_sanitizes_slug_and_writes_utf8(tmp_path):
+    client = MockLLMClient()
+    orchestrator = DebateOrchestrator(
+        client=client,
+        max_rounds=1,
+        save_results=True,
+        enable_graph_analysis=False,
+        results_dir=str(tmp_path),
+    )
+    # Path separators, Windows-invalid chars, and non-ASCII in the question
+    # must not escape results_dir or crash the save on cp1252 systems.
+    question = 'Is ../../evil\\path:*?"<>| okay — em-dash too?'
+    result = orchestrator.run(question)
+    assert result is not None
+
+    saved = list(tmp_path.glob("debate_*.json"))
+    assert len(saved) == 1
+    # File landed directly in results_dir (no traversal out of it)
+    assert saved[0].parent == tmp_path
+    # Filename contains only safe characters after the prefix
+    assert re.fullmatch(r"debate_\d{8}_\d{6}_[A-Za-z0-9_-]*\.json", saved[0].name)
+    # Content is valid UTF-8 JSON that round-trips the original question
+    data = json.loads(saved[0].read_text(encoding="utf-8"))
+    assert data["question"] == question

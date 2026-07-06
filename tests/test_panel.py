@@ -1,7 +1,7 @@
 """Tests for multi-skeptic panel debate mode (Feature B)."""
 import pytest
-from src.debate.utils import MockLLMClient
-from src.debate.orchestrator import DebateOrchestrator
+from multi_agent_debate.debate.utils import MockLLMClient
+from multi_agent_debate.debate.orchestrator import DebateOrchestrator
 
 
 def test_panel_mode_flag_is_set():
@@ -25,7 +25,7 @@ def test_panel_produces_multiple_skeptic_turns_per_round():
     orch = DebateOrchestrator(client=client, save_results=False, enable_graph_analysis=False,
                                max_rounds=1, skeptic_modes=["logic", "evidence"])
     result = orch.run("Test question?")
-    from src.debate.schemas import AgentRole
+    from multi_agent_debate.debate.schemas import AgentRole
     skeptic_turns = [t for t in result.transcript.turns if t.role == AgentRole.SKEPTIC]
     assert len(skeptic_turns) >= 2  # at least one turn per skeptic
 

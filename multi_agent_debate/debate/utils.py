@@ -8,6 +8,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Single source of truth for the default Claude model used across the CLI,
+# orchestrator, and benchmark runner. Update this constant when migrating to a
+# newer model rather than editing each call site individually.
+DEFAULT_MODEL = "claude-sonnet-4-6"
+
 
 class BaseLLMClient(ABC):
     """Abstract base for LLM clients."""
@@ -23,7 +28,7 @@ class BaseLLMClient(ABC):
 class AnthropicClient(BaseLLMClient):
     def __init__(
         self,
-        model: str = "claude-3-5-sonnet-latest",
+        model: str = DEFAULT_MODEL,
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> None:
@@ -50,8 +55,17 @@ class AnthropicClient(BaseLLMClient):
             system=system,
             messages=[{"role": "user", "content": user}],
         )
-        text = response.content[0].text
-        return text, response.usage.input_tokens, response.usage.output_tokens
+        text_block = next(
+            (block for block in response.content if getattr(block, "type", None) == "text"),
+            None,
+        )
+        if text_block is None:
+            raise RuntimeError(
+                "AnthropicClient.call: response contained no text content block "
+                f"(stop_reason={response.stop_reason!r}). This can happen on a "
+                "refusal or an all-tool-use response."
+            )
+        return text_block.text, response.usage.input_tokens, response.usage.output_tokens
 
 
 class MockLLMClient(BaseLLMClient):

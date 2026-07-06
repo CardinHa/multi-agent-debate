@@ -30,8 +30,8 @@ server = [
 ]
 
 [project.scripts]
-debate = "src.main:app"
+debate = "multi_agent_debate.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src*"]
+include = ["multi_agent_debate*"]

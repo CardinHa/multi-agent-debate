@@ -1,6 +1,6 @@
 """Markdown export for DebateResult."""
 from __future__ import annotations
-from .schemas import DebateResult
+from .schemas import DebateResult, round_label
 
 
 def debate_to_markdown(result: DebateResult) -> str:
@@ -19,7 +19,7 @@ def debate_to_markdown(result: DebateResult) -> str:
     lines.append("## Transcript")
     lines.append("")
     for turn in result.transcript.turns:
-        lines.append(f"### Turn {turn.round_num} — {turn.role.value.capitalize()}")
+        lines.append(f"### {round_label(turn.round_num)} — {turn.role.value.capitalize()}")
         lines.append("")
         quoted = "\n".join(f"> {line}" for line in turn.content.splitlines())
         lines.append(quoted)

@@ -1,18 +1,19 @@
 """DebateOrchestrator — coordinates the full debate loop."""
 from __future__ import annotations
 import json
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Callable
-from src.debate.schemas import (
+from multi_agent_debate.debate.schemas import (
     AgentRole, AgentResponse, ConvergenceReason, DebateTurn, DebateTranscript,
     DebateResult, GraphAnalysis, ConstitutionalReview,
 )
-from src.debate.agents import ProposerAgent, SkepticAgent, ConstitutionalAgent, _format_transcript
-from src.debate.judge import JudgeAgent
-from src.debate.convergence import ConvergenceDetector
-from src.debate.graph import DebateGraphBuilder, GraphAnalyzer
-from src.debate.utils import BaseLLMClient, AnthropicClient
+from multi_agent_debate.debate.agents import ProposerAgent, SkepticAgent, ConstitutionalAgent, _format_transcript
+from multi_agent_debate.debate.judge import JudgeAgent
+from multi_agent_debate.debate.convergence import ConvergenceDetector
+from multi_agent_debate.debate.graph import DebateGraphBuilder, GraphAnalyzer
+from multi_agent_debate.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
 
 
 class DebateOrchestrator:
@@ -31,7 +32,7 @@ class DebateOrchestrator:
     def __init__(
         self,
         client: BaseLLMClient | None = None,
-        model: str = "claude-3-5-sonnet-latest",
+        model: str = DEFAULT_MODEL,
         temperature: float = 0.7,
         max_rounds: int = 3,
         convergence_threshold: float = 0.65,
@@ -44,6 +45,8 @@ class DebateOrchestrator:
         human_input_fn: Callable[[str], str] | None = None,
         enable_constitutional: bool = False,
     ) -> None:
+        if max_rounds < 1:
+            raise ValueError(f"max_rounds must be >= 1, got {max_rounds}")
         if client is None:
             client = AnthropicClient(model=model, temperature=temperature)
         self._client = client
@@ -74,7 +77,9 @@ class DebateOrchestrator:
         converged = False
         convergence_reason: ConvergenceReason | None = None
 
-        # --- Round 1: Proposer initial argument ---
+        # --- Round 0: Proposer opening argument ---
+        # The opening statement is round 0; the loop's first skeptic/proposer
+        # exchange is round 1. (Previously both were labeled round 1.)
         if self._human_role == "proposer" and self._human_input_fn:
             prompt = f"Question: {question}\n\nYour turn as PROPOSER — make your opening argument:"
             human_text = self._human_input_fn(prompt)
@@ -84,11 +89,13 @@ class DebateOrchestrator:
         total_input += initial.input_tokens
         total_output += initial.output_tokens
         transcript.turns.append(
-            DebateTurn(round_num=1, role=AgentRole.PROPOSER,
+            DebateTurn(round_num=0, role=AgentRole.PROPOSER,
                        content=initial.content, token_count=initial.output_tokens)
         )
 
-        rounds_used = 1
+        # max_rounds >= 1 is enforced in __init__, so the loop below always
+        # runs and sets rounds_used to the actual exchange count.
+        rounds_used = 0
 
         for round_num in range(1, self.max_rounds + 1):
             # --- Each skeptic challenges in turn ---
@@ -194,7 +201,11 @@ class DebateOrchestrator:
         """Save DebateResult as JSON and return the file path."""
         self.results_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        slug = result.question[:40].replace(" ", "_").replace("?", "").replace("/", "_")
+        # Replace anything that isn't alphanumeric/underscore/hyphen (rather than
+        # denylisting a handful of characters) so path separators, colons,
+        # question marks, and other characters invalid on Windows can't leak
+        # into the filename or traverse out of results_dir.
+        slug = re.sub(r"[^A-Za-z0-9_-]", "_", result.question[:40])
         path = self.results_dir / f"debate_{timestamp}_{slug}.json"
-        path.write_text(result.model_dump_json(indent=2))
+        path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
         return str(path)

@@ -1,8 +1,8 @@
 """Tests for A/B debate comparison mode."""
 import pytest
-from src.debate.utils import MockLLMClient
-from src.debate.compare import run_comparison, comparison_to_markdown
-from src.debate.schemas import DebateComparison
+from multi_agent_debate.debate.utils import MockLLMClient
+from multi_agent_debate.debate.compare import run_comparison, comparison_to_markdown
+from multi_agent_debate.debate.schemas import DebateComparison
 
 
 def _client():

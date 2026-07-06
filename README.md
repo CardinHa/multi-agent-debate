@@ -129,17 +129,17 @@ cp .env.example .env
 
 **Basic debate:**
 ```bash
-python -m src.main debate "Your question here"
+python -m multi_agent_debate.main debate "Your question here"
 ```
 
 **With graph analysis and more rounds:**
 ```bash
-python -m src.main debate "Your question here" --rounds 4 --graph --graph-viz
+python -m multi_agent_debate.main debate "Your question here" --rounds 4 --graph --graph-viz
 ```
 
 **Specialized skeptic + constitutional review + exports:**
 ```bash
-python -m src.main debate "Does social media harm democracy?" \
+python -m multi_agent_debate.main debate "Does social media harm democracy?" \
   --skeptic-mode evidence \
   --constitutional \
   --export results/debate.md \
@@ -148,35 +148,35 @@ python -m src.main debate "Does social media harm democracy?" \
 
 **Panel debate (two skeptics with different modes):**
 ```bash
-python -m src.main debate "Is nuclear energy safe?" --panel logic,safety --mock --no-save
+python -m multi_agent_debate.main debate "Is nuclear energy safe?" --panel logic,safety --mock --no-save
 ```
 
 **Human-in-the-loop (you play the skeptic):**
 ```bash
-python -m src.main debate "The Earth is 6,000 years old" --human-role skeptic
+python -m multi_agent_debate.main debate "The Earth is 6,000 years old" --human-role skeptic
 ```
 
 **A/B comparison (same question, two skeptic configs):**
 ```bash
-python -m src.main compare "Is consciousness an emergent property?" \
+python -m multi_agent_debate.main compare "Is consciousness an emergent property?" \
   --mode-a general --mode-b logic --mock --export results/comparison.md
 ```
 
 **Benchmark with calibration report:**
 ```bash
-python -m src.main benchmark --dataset data/sample_claims.jsonl --mock --report
+python -m multi_agent_debate.main benchmark --dataset data/sample_claims.jsonl --mock --report
 ```
 
 **Start the REST API server:**
 ```bash
 pip install ".[server]"
-python -m src.main serve --port 8000
+python -m multi_agent_debate.main serve --port 8000
 # POST /debate  POST /compare  GET /health
 ```
 
 **Dry run (no API key needed):**
 ```bash
-python -m src.main debate "Test question" --mock --no-save
+python -m multi_agent_debate.main debate "Test question" --mock --no-save
 ```
 
 ---
@@ -404,7 +404,7 @@ The agent returns a `ConstitutionalReview` Pydantic model with `violations`, `wa
 
 ```bash
 pip install ".[server]"
-python -m src.main serve --port 8000
+python -m multi_agent_debate.main serve --port 8000
 ```
 
 | Method | Path | Description |
