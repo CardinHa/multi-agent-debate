@@ -1,6 +1,7 @@
 """DebateOrchestrator — coordinates the full debate loop."""
 from __future__ import annotations
 import json
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Callable
@@ -194,7 +195,11 @@ class DebateOrchestrator:
         """Save DebateResult as JSON and return the file path."""
         self.results_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        slug = result.question[:40].replace(" ", "_").replace("?", "").replace("/", "_")
+        # Replace anything that isn't alphanumeric/underscore/hyphen (rather than
+        # denylisting a handful of characters) so path separators, colons,
+        # question marks, and other characters invalid on Windows can't leak
+        # into the filename or traverse out of results_dir.
+        slug = re.sub(r"[^A-Za-z0-9_-]", "_", result.question[:40])
         path = self.results_dir / f"debate_{timestamp}_{slug}.json"
-        path.write_text(result.model_dump_json(indent=2))
+        path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
         return str(path)

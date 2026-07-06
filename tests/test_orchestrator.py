@@ -1,4 +1,7 @@
 """Integration test for DebateOrchestrator using MockLLMClient."""
+import json
+import re
+
 from src.debate.orchestrator import DebateOrchestrator
 from src.debate.utils import MockLLMClient
 from src.debate.schemas import ConvergenceReason
@@ -48,3 +51,29 @@ def test_orchestrator_graph_analysis_disabled():
     )
     result = orchestrator.run("Test?")
     assert result.graph_analysis is None
+
+
+def test_save_sanitizes_slug_and_writes_utf8(tmp_path):
+    client = MockLLMClient()
+    orchestrator = DebateOrchestrator(
+        client=client,
+        max_rounds=1,
+        save_results=True,
+        enable_graph_analysis=False,
+        results_dir=str(tmp_path),
+    )
+    # Path separators, Windows-invalid chars, and non-ASCII in the question
+    # must not escape results_dir or crash the save on cp1252 systems.
+    question = 'Is ../../evil\\path:*?"<>| okay — em-dash too?'
+    result = orchestrator.run(question)
+    assert result is not None
+
+    saved = list(tmp_path.glob("debate_*.json"))
+    assert len(saved) == 1
+    # File landed directly in results_dir (no traversal out of it)
+    assert saved[0].parent == tmp_path
+    # Filename contains only safe characters after the prefix
+    assert re.fullmatch(r"debate_\d{8}_\d{6}_[A-Za-z0-9_-]*\.json", saved[0].name)
+    # Content is valid UTF-8 JSON that round-trips the original question
+    data = json.loads(saved[0].read_text(encoding="utf-8"))
+    assert data["question"] == question
