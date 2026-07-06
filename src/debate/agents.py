@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import warnings
 
-from src.debate.schemas import AgentResponse, AgentRole, DebateTranscript
+from src.debate.schemas import AgentResponse, AgentRole, DebateTranscript, round_label
 from src.debate.prompts import PROPOSER_SYSTEM_PROMPT, SKEPTIC_MODE_PROMPTS
 from src.debate.utils import BaseLLMClient
 
@@ -13,7 +13,7 @@ def _format_transcript(transcript: DebateTranscript) -> str:
     lines = []
     for turn in transcript.turns:
         label = turn.role.value.upper()
-        lines.append(f"[{label} — Round {turn.round_num}]\n{turn.content}")
+        lines.append(f"[{label} — {round_label(turn.round_num)}]\n{turn.content}")
     return "\n\n".join(lines)
 
 

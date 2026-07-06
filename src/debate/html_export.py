@@ -1,7 +1,7 @@
 """Self-contained HTML export for DebateResult."""
 from __future__ import annotations
 import html
-from .schemas import DebateResult
+from .schemas import DebateResult, round_label
 
 _CSS = """
 body { font-family: system-ui, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #1e293b; background: #f8fafc; }
@@ -68,7 +68,7 @@ def debate_to_html(result: DebateResult) -> str:
         token_info = f" ({turn.token_count} tokens)" if turn.token_count is not None else ""
         turns_html_parts.append(
             f'<div class="turn turn-{role_val}">\n'
-            f'  <div class="turn-header">{role_label} — Round {turn.round_num}{html.escape(token_info)}</div>\n'
+            f'  <div class="turn-header">{role_label} — {round_label(turn.round_num)}{html.escape(token_info)}</div>\n'
             f'  <div class="turn-body">{content_escaped}</div>\n'
             f'</div>'
         )

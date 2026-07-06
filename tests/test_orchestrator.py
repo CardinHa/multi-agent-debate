@@ -2,9 +2,11 @@
 import json
 import re
 
+import pytest
+
 from src.debate.orchestrator import DebateOrchestrator
 from src.debate.utils import MockLLMClient
-from src.debate.schemas import ConvergenceReason
+from src.debate.schemas import AgentRole, ConvergenceReason
 
 
 def test_orchestrator_runs_end_to_end():
@@ -51,6 +53,35 @@ def test_orchestrator_graph_analysis_disabled():
     )
     result = orchestrator.run("Test?")
     assert result.graph_analysis is None
+
+
+def test_opening_argument_is_round_zero():
+    client = MockLLMClient()
+    orchestrator = DebateOrchestrator(
+        client=client,
+        max_rounds=2,
+        save_results=False,
+        enable_graph_analysis=False,
+    )
+    result = orchestrator.run("Is the sky blue?")
+    turns = result.transcript.turns
+    # Opening proposer statement is round 0; the loop's first exchange is round 1.
+    assert turns[0].role == AgentRole.PROPOSER
+    assert turns[0].round_num == 0
+    assert turns[1].round_num == 1
+    # No other turn shares the opening's round-0 label
+    assert all(t.round_num >= 1 for t in turns[1:])
+
+
+@pytest.mark.parametrize("bad_rounds", [0, -1, -5])
+def test_max_rounds_below_one_raises_value_error(bad_rounds):
+    with pytest.raises(ValueError, match="max_rounds"):
+        DebateOrchestrator(
+            client=MockLLMClient(),
+            max_rounds=bad_rounds,
+            save_results=False,
+            enable_graph_analysis=False,
+        )
 
 
 def test_save_sanitizes_slug_and_writes_utf8(tmp_path):

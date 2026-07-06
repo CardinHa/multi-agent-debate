@@ -5,7 +5,7 @@ import json
 import re
 import warnings
 
-from src.debate.schemas import JudgeOutput, DebateTranscript, AgentRole, VerdictType
+from src.debate.schemas import JudgeOutput, DebateTranscript, AgentRole, VerdictType, round_label
 from src.debate.prompts import JUDGE_SYSTEM_PROMPT, JUDGE_USER_TEMPLATE
 from src.debate.utils import BaseLLMClient
 
@@ -27,7 +27,7 @@ def _format_full_transcript(transcript: DebateTranscript) -> str:
     lines = []
     for turn in transcript.turns:
         label = turn.role.value.upper()
-        lines.append(f"[{label} — Round {turn.round_num}]\n{turn.content}")
+        lines.append(f"[{label} — {round_label(turn.round_num)}]\n{turn.content}")
     return "\n\n".join(lines)
 
 

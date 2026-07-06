@@ -3,6 +3,10 @@ from __future__ import annotations
 import re
 from src.debate.schemas import DebateTurn, DebateTranscript, AgentRole, ConvergenceReason
 
+# NOTE: "that's a fair point" is deliberately NOT a concession pattern.
+# prompts.py explicitly instructs the Proposer to use exactly that phrase in
+# *false* concessions ("that's a fair point, but…"), so matching it would halt
+# debates on rhetorical acknowledgments that don't actually update the position.
 _CONCESSION_PATTERNS = [
     r"\bi concede\b",
     r"\byou(?:'re| are) correct\b",
@@ -10,7 +14,6 @@ _CONCESSION_PATTERNS = [
     r"\bi acknowledge\b.*\bflaw\b",
     r"\bi(?:'ll| will) revise\b",
     r"\bi(?:'m| am) wrong\b",
-    r"\bthat(?:'s| is) a fair point\b",
     r"\byou(?:'ve| have) convinced me\b",
 ]
 

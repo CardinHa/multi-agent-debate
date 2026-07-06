@@ -23,9 +23,10 @@ console = Console()
 
 
 def _print_turn(role: str, round_num: int, content: str) -> None:
+    from src.debate.schemas import round_label
     colors = {"proposer": "green", "skeptic": "red", "judge": "blue"}
     color = colors.get(role.lower(), "white")
-    title = f"[bold {color}]{role.upper()}[/] — Round {round_num}"
+    title = f"[bold {color}]{role.upper()}[/] — {round_label(round_num)}"
     console.print(Panel(content, title=title, border_style=color, padding=(1, 2)))
 
 

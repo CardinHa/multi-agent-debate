@@ -23,6 +23,16 @@ def test_detect_concession_negative():
     assert detector.detect_concession("I maintain my position.") is False
 
 
+def test_fair_point_is_not_a_concession():
+    # prompts.py explicitly names "that's a fair point, but…" as the *false*
+    # concession phrase the Proposer may use, so it must not halt the debate.
+    detector = ConvergenceDetector()
+    assert detector.detect_concession(
+        "That's a fair point, but my conclusion still stands because..."
+    ) is False
+    assert detector.detect_concession("That is a fair point, however X.") is False
+
+
 def test_detect_repetition_same_text():
     detector = ConvergenceDetector()
     turns = [

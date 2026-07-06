@@ -24,6 +24,15 @@ class VerdictType(str, Enum):
     UNCERTAIN = "uncertain"
 
 
+def round_label(round_num: int) -> str:
+    """Human-readable label for a turn's round number.
+
+    Round 0 is the Proposer's opening argument; rounds 1..N are the
+    skeptic/proposer exchanges.
+    """
+    return "Opening" if round_num == 0 else f"Round {round_num}"
+
+
 class DebateTurn(BaseModel):
     round_num: int
     role: AgentRole

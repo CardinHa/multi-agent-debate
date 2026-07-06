@@ -45,6 +45,8 @@ class DebateOrchestrator:
         human_input_fn: Callable[[str], str] | None = None,
         enable_constitutional: bool = False,
     ) -> None:
+        if max_rounds < 1:
+            raise ValueError(f"max_rounds must be >= 1, got {max_rounds}")
         if client is None:
             client = AnthropicClient(model=model, temperature=temperature)
         self._client = client
@@ -75,7 +77,9 @@ class DebateOrchestrator:
         converged = False
         convergence_reason: ConvergenceReason | None = None
 
-        # --- Round 1: Proposer initial argument ---
+        # --- Round 0: Proposer opening argument ---
+        # The opening statement is round 0; the loop's first skeptic/proposer
+        # exchange is round 1. (Previously both were labeled round 1.)
         if self._human_role == "proposer" and self._human_input_fn:
             prompt = f"Question: {question}\n\nYour turn as PROPOSER — make your opening argument:"
             human_text = self._human_input_fn(prompt)
@@ -85,11 +89,13 @@ class DebateOrchestrator:
         total_input += initial.input_tokens
         total_output += initial.output_tokens
         transcript.turns.append(
-            DebateTurn(round_num=1, role=AgentRole.PROPOSER,
+            DebateTurn(round_num=0, role=AgentRole.PROPOSER,
                        content=initial.content, token_count=initial.output_tokens)
         )
 
-        rounds_used = 1
+        # max_rounds >= 1 is enforced in __init__, so the loop below always
+        # runs and sets rounds_used to the actual exchange count.
+        rounds_used = 0
 
         for round_num in range(1, self.max_rounds + 1):
             # --- Each skeptic challenges in turn ---
