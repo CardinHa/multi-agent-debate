@@ -4,6 +4,7 @@ from multi_agent_debate.debate.benchmark import BenchmarkRunner
 from multi_agent_debate.debate.schemas import (
     DebateResult, BenchmarkResult, JudgeOutput,
     DebateTurn, DebateTranscript, GraphAnalysis,
+    GradeResult, GraderType,
 )
 from multi_agent_debate.debate.utils import AnthropicClient, MockLLMClient
 
@@ -16,6 +17,8 @@ __all__ = [
     "DebateTurn",
     "DebateTranscript",
     "GraphAnalysis",
+    "GradeResult",
+    "GraderType",
     "AnthropicClient",
     "MockLLMClient",
 ]

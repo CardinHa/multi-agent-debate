@@ -1,13 +1,29 @@
 """BenchmarkRunner — compares single-agent baseline vs debate system."""
 from __future__ import annotations
 import json
-import re
 from pathlib import Path
 from datetime import datetime
-from multi_agent_debate.debate.schemas import BenchmarkExample, BenchmarkResult, AgentRole
+from multi_agent_debate.debate.schemas import BenchmarkExample, BenchmarkResult, AgentRole, GraderType
 from multi_agent_debate.debate.orchestrator import DebateOrchestrator
 from multi_agent_debate.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
 from multi_agent_debate.debate.prompts import PROPOSER_SYSTEM_PROMPT
+from multi_agent_debate.debate.grading import (
+    answers_match,
+    grade_with_llm,
+    GRADER_CALLS_PER_EXAMPLE,
+    GRADER_MAX_TOKENS,
+    ROUGH_TOKENS_PER_GRADER_CALL,
+)
+
+# Re-exported for backward compatibility — this constant is documented as
+# living in grading.py, but callers that only import from benchmark.py (e.g.
+# the CLI's cost guardrail) can reach it here too.
+__all__ = [
+    "BenchmarkRunner",
+    "count_examples",
+    "GRADER_CALLS_PER_EXAMPLE",
+    "ROUGH_TOKENS_PER_GRADER_CALL",
+]
 
 
 def _load_examples(path: str) -> list[BenchmarkExample]:
@@ -20,6 +36,15 @@ def _load_examples(path: str) -> list[BenchmarkExample]:
     return examples
 
 
+def count_examples(path: str) -> int:
+    """Count examples in a JSONL dataset without full Pydantic validation.
+
+    Used by the CLI's upfront cost estimate for --grader llm, where we only
+    need a cheap count, not validated BenchmarkExample objects.
+    """
+    return sum(1 for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip())
+
+
 def _baseline_answer(client: BaseLLMClient, question: str) -> tuple[str, int]:
     """Get a single-agent answer using the Proposer system prompt."""
     text, inp, out = client.call(
@@ -29,56 +54,10 @@ def _baseline_answer(client: BaseLLMClient, question: str) -> tuple[str, int]:
     return text, inp + out
 
 
-_YES_WORDS = {"yes", "yeah", "yep", "correct", "true", "indeed", "affirmative"}
-_NO_WORDS = {"no", "nope", "incorrect", "false", "negative"}
-
-
-def _normalize(text: str) -> str:
-    """Lowercase and strip punctuation."""
-    return re.sub(r"[^\w\s]", "", text.lower()).strip()
-
-
-def _leading_polarity(text: str) -> str | None:
-    """Return 'yes', 'no', or None based on the leading token of normalized text."""
-    words = _normalize(text).split()
-    if not words:
-        return None
-    first = words[0]
-    if first in _YES_WORDS:
-        return "yes"
-    if first in _NO_WORDS:
-        return "no"
-    return None
-
-
-def _token_overlap_ratio(answer: str, ground_truth: str) -> float:
-    a_tokens = set(_normalize(answer).split())
-    g_tokens = set(_normalize(ground_truth).split())
-    return len(a_tokens & g_tokens) / max(len(g_tokens), 1)
-
-
-def _answers_match(answer: str, ground_truth: str) -> bool:
-    """
-    Polarity-aware correctness check.
-
-    Ground truths in this dataset conventionally open with an explicit
-    "Yes."/"No." verdict. Raw keyword overlap alone has a length bias: a
-    verbose *wrong* answer that reuses the question's topic vocabulary can
-    out-overlap a terse *correct* one-word answer. To fix this, extract an
-    explicit yes/no polarity from the leading token of both the answer and
-    the ground truth when present. If both state a polarity, agreement
-    between them is the primary signal — a stated "Yes" cannot match a
-    "No." truth no matter how much vocabulary it shares. Token overlap is
-    used as a secondary signal only when at least one side has no explicit
-    leading polarity to compare.
-    """
-    answer_polarity = _leading_polarity(answer)
-    truth_polarity = _leading_polarity(ground_truth)
-
-    if answer_polarity is not None and truth_polarity is not None:
-        return answer_polarity == truth_polarity
-
-    return _token_overlap_ratio(answer, ground_truth) > 0.35
+# The heuristic grader itself now lives in grading.py (it's reused by
+# grade_with_llm's fallback path). Kept importable here under its original
+# name for backward compatibility with existing callers/tests.
+_answers_match = answers_match
 
 
 class BenchmarkRunner:
@@ -90,7 +69,14 @@ class BenchmarkRunner:
         model: str = DEFAULT_MODEL,
         max_rounds: int = 3,
         results_dir: str = "results",
+        grader: str = "heuristic",
+        grader_client: BaseLLMClient | None = None,
     ) -> None:
+        if grader not in ("heuristic", "llm"):
+            raise ValueError(f"grader must be 'heuristic' or 'llm', got {grader!r}")
+        self.grader = grader
+
+        client_was_provided = client is not None
         if client is None:
             client = AnthropicClient(model=model)
         self._client = client
@@ -102,6 +88,22 @@ class BenchmarkRunner:
             results_dir=results_dir,
         )
         self.results_dir = Path(results_dir)
+
+        # The LLM grader wants deterministic, cheap calls (temperature 0,
+        # small max_tokens) — distinct from the debate client's settings. If
+        # the caller built their own client (a MockLLMClient, a test double,
+        # or a custom BaseLLMClient), reuse it for grading too rather than
+        # guessing how to reconfigure it. Only when we constructed the
+        # default AnthropicClient ourselves do we also construct a dedicated
+        # low-temperature grading client.
+        if grader_client is not None:
+            self._grader_client = grader_client
+        elif not client_was_provided:
+            self._grader_client = AnthropicClient(
+                model=model, temperature=0.0, max_tokens=GRADER_MAX_TOKENS
+            )
+        else:
+            self._grader_client = client
 
     def run(self, dataset_path: str) -> list[BenchmarkResult]:
         """Run the benchmark, saving each example's result incrementally as it completes.
@@ -147,13 +149,43 @@ class BenchmarkRunner:
         # Debate
         debate_result = self._orchestrator.run(ex.question)
         debate_answer = debate_result.judge_output.final_answer
+
+        grader_tokens = 0
+        baseline_heuristic_match: bool | None = None
+        debate_heuristic_match: bool | None = None
+
+        if self.grader == "llm":
+            # Compute the heuristic verdict alongside for free — it costs no
+            # extra API call and lets the summary report an agreement rate.
+            baseline_heuristic_match = answers_match(baseline_answer, ex.ground_truth)
+            debate_heuristic_match = answers_match(debate_answer, ex.ground_truth)
+
+            baseline_grade = grade_with_llm(
+                self._grader_client, ex.question, baseline_answer, ex.ground_truth
+            )
+            debate_grade = grade_with_llm(
+                self._grader_client, ex.question, debate_answer, ex.ground_truth
+            )
+            grader_tokens = (
+                baseline_grade.input_tokens + baseline_grade.output_tokens
+                + debate_grade.input_tokens + debate_grade.output_tokens
+            )
+
+            baseline_correct = baseline_grade.match
+            debate_correct = debate_grade.match
+            baseline_grader = baseline_grade.grader
+            debate_grader = debate_grade.grader
+        else:
+            baseline_correct = answers_match(baseline_answer, ex.ground_truth)
+            debate_correct = answers_match(debate_answer, ex.ground_truth)
+            baseline_grader = GraderType.HEURISTIC
+            debate_grader = GraderType.HEURISTIC
+
         total_tokens = (
             debate_result.total_input_tokens + debate_result.total_output_tokens
-            + baseline_tokens
+            + baseline_tokens + grader_tokens
         )
 
-        baseline_correct = _answers_match(baseline_answer, ex.ground_truth)
-        debate_correct = _answers_match(debate_answer, ex.ground_truth)
         debate_improved = debate_correct and not baseline_correct
         debate_regressed = baseline_correct and not debate_correct
 
@@ -173,6 +205,10 @@ class BenchmarkRunner:
             converged=debate_result.converged,
             total_tokens=total_tokens,
             judge_parse_failed=debate_result.judge_output.parse_failed,
+            baseline_grader=baseline_grader,
+            debate_grader=debate_grader,
+            baseline_heuristic_match=baseline_heuristic_match,
+            debate_heuristic_match=debate_heuristic_match,
         )
 
     def save_results(self, results: list[BenchmarkResult]) -> str:
@@ -228,7 +264,7 @@ class BenchmarkRunner:
         convergence_rate = sum(1 for r in ok if r.converged) / n_ok
         avg_tokens = sum(r.total_tokens for r in ok) / n_ok
 
-        return {
+        result = {
             "total_examples": total,
             "failed_examples": len(failed),
             "judge_parse_failures": sum(1 for r in ok if r.judge_parse_failed),
@@ -241,3 +277,35 @@ class BenchmarkRunner:
             "convergence_rate": round(convergence_rate, 3),
             "avg_total_tokens": round(avg_tokens),
         }
+
+        # LLM-grading metadata is only added when at least one example was
+        # actually graded (or attempted) by the LLM grader — a pure
+        # grader="heuristic" run's summary is byte-for-byte identical to the
+        # pre-LLM-grader schema.
+        llm_graded = [
+            r for r in ok
+            if r.baseline_grader != GraderType.HEURISTIC
+            or r.debate_grader != GraderType.HEURISTIC
+        ]
+        if llm_graded:
+            result["llm_graded_examples"] = len(llm_graded)
+            result["grader_fallback_count"] = sum(
+                1 for r in ok
+                if r.baseline_grader == GraderType.HEURISTIC_FALLBACK
+                or r.debate_grader == GraderType.HEURISTIC_FALLBACK
+            )
+            # Agreement between the heuristic grader and the LLM grader,
+            # computed per verdict (baseline and debate each contribute one
+            # comparison) over every verdict where both were available.
+            agreements = []
+            for r in ok:
+                if r.baseline_heuristic_match is not None:
+                    agreements.append(r.baseline_correct == r.baseline_heuristic_match)
+                if r.debate_heuristic_match is not None:
+                    agreements.append(r.debate_correct == r.debate_heuristic_match)
+            if agreements:
+                result["heuristic_llm_agreement_rate"] = round(
+                    sum(agreements) / len(agreements), 3
+                )
+
+        return result
