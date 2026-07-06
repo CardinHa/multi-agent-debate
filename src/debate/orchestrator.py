@@ -12,7 +12,7 @@ from src.debate.agents import ProposerAgent, SkepticAgent, ConstitutionalAgent, 
 from src.debate.judge import JudgeAgent
 from src.debate.convergence import ConvergenceDetector
 from src.debate.graph import DebateGraphBuilder, GraphAnalyzer
-from src.debate.utils import BaseLLMClient, AnthropicClient
+from src.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
 
 
 class DebateOrchestrator:
@@ -31,7 +31,7 @@ class DebateOrchestrator:
     def __init__(
         self,
         client: BaseLLMClient | None = None,
-        model: str = "claude-3-5-sonnet-latest",
+        model: str = DEFAULT_MODEL,
         temperature: float = 0.7,
         max_rounds: int = 3,
         convergence_threshold: float = 0.65,

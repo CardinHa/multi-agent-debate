@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from src.debate.schemas import BenchmarkExample, BenchmarkResult, AgentRole
 from src.debate.orchestrator import DebateOrchestrator
-from src.debate.utils import BaseLLMClient, AnthropicClient
+from src.debate.utils import BaseLLMClient, AnthropicClient, DEFAULT_MODEL
 from src.debate.prompts import PROPOSER_SYSTEM_PROMPT
 
 
@@ -45,7 +45,7 @@ class BenchmarkRunner:
     def __init__(
         self,
         client: BaseLLMClient | None = None,
-        model: str = "claude-3-5-sonnet-latest",
+        model: str = DEFAULT_MODEL,
         max_rounds: int = 3,
         results_dir: str = "results",
     ) -> None:

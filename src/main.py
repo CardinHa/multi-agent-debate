@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 import typer
 from rich.console import Console
+from src.debate.utils import DEFAULT_MODEL
 from rich.panel import Panel
 from rich.table import Table
 from rich import box
@@ -33,7 +34,7 @@ def debate(
     question: str = typer.Argument(..., help="Question or claim to debate."),
     rounds: int = typer.Option(3, "--rounds", "-r", help="Maximum debate rounds."),
     model: str = typer.Option(
-        "claude-3-5-sonnet-latest", "--model", "-m", help="Claude model name."
+        DEFAULT_MODEL, "--model", "-m", help="Claude model name."
     ),
     temperature: float = typer.Option(0.7, "--temperature", "-t"),
     graph: bool = typer.Option(False, "--graph", "-g", help="Enable graph analysis."),
@@ -190,7 +191,7 @@ def benchmark(
     dataset: str = typer.Option(
         "data/sample_claims.jsonl", "--dataset", "-d", help="Path to JSONL dataset."
     ),
-    model: str = typer.Option("claude-3-5-sonnet-latest", "--model", "-m"),
+    model: str = typer.Option(DEFAULT_MODEL, "--model", "-m"),
     rounds: int = typer.Option(3, "--rounds", "-r"),
     mock: bool = typer.Option(False, "--mock", help="Use mock LLM (no API calls)."),
     report: bool = typer.Option(False, "--report", help="Save Markdown calibration report."),

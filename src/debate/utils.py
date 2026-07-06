@@ -8,6 +8,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Single source of truth for the default Claude model used across the CLI,
+# orchestrator, and benchmark runner. Update this constant when migrating to a
+# newer model rather than editing each call site individually.
+DEFAULT_MODEL = "claude-sonnet-4-6"
+
 
 class BaseLLMClient(ABC):
     """Abstract base for LLM clients."""
@@ -23,7 +28,7 @@ class BaseLLMClient(ABC):
 class AnthropicClient(BaseLLMClient):
     def __init__(
         self,
-        model: str = "claude-3-5-sonnet-latest",
+        model: str = DEFAULT_MODEL,
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> None:
