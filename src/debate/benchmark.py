@@ -1,6 +1,7 @@
 """BenchmarkRunner — compares single-agent baseline vs debate system."""
 from __future__ import annotations
 import json
+import re
 from pathlib import Path
 from datetime import datetime
 from src.debate.schemas import BenchmarkExample, BenchmarkResult, AgentRole
@@ -28,15 +29,56 @@ def _baseline_answer(client: BaseLLMClient, question: str) -> tuple[str, int]:
     return text, inp + out
 
 
+_YES_WORDS = {"yes", "yeah", "yep", "correct", "true", "indeed", "affirmative"}
+_NO_WORDS = {"no", "nope", "incorrect", "false", "negative"}
+
+
+def _normalize(text: str) -> str:
+    """Lowercase and strip punctuation."""
+    return re.sub(r"[^\w\s]", "", text.lower()).strip()
+
+
+def _leading_polarity(text: str) -> str | None:
+    """Return 'yes', 'no', or None based on the leading token of normalized text."""
+    words = _normalize(text).split()
+    if not words:
+        return None
+    first = words[0]
+    if first in _YES_WORDS:
+        return "yes"
+    if first in _NO_WORDS:
+        return "no"
+    return None
+
+
+def _token_overlap_ratio(answer: str, ground_truth: str) -> float:
+    a_tokens = set(_normalize(answer).split())
+    g_tokens = set(_normalize(ground_truth).split())
+    return len(a_tokens & g_tokens) / max(len(g_tokens), 1)
+
+
 def _answers_match(answer: str, ground_truth: str) -> bool:
     """
-    Simple keyword-overlap correctness check.
-    Returns True if the answer overlaps substantially with ground truth key terms.
+    Polarity-aware correctness check.
+
+    Ground truths in this dataset conventionally open with an explicit
+    "Yes."/"No." verdict. Raw keyword overlap alone has a length bias: a
+    verbose *wrong* answer that reuses the question's topic vocabulary can
+    out-overlap a terse *correct* one-word answer. To fix this, extract an
+    explicit yes/no polarity from the leading token of both the answer and
+    the ground truth when present. If both state a polarity, agreement
+    between them is the primary signal — a stated "Yes" cannot match a
+    "No." truth no matter how much vocabulary it shares. Token overlap is
+    used as a secondary signal only when at least one side has no explicit
+    leading polarity to compare.
     """
-    a_tokens = set(answer.lower().split())
-    g_tokens = set(ground_truth.lower().split())
-    overlap = len(a_tokens & g_tokens) / max(len(g_tokens), 1)
-    return overlap > 0.35
+    answer_polarity = _leading_polarity(answer)
+    truth_polarity = _leading_polarity(ground_truth)
+
+    if answer_polarity is not None and truth_polarity is not None:
+        return answer_polarity == truth_polarity
+
+    return _token_overlap_ratio(answer, ground_truth) > 0.35
 
 
 class BenchmarkRunner:
@@ -113,6 +155,7 @@ class BenchmarkRunner:
         baseline_correct = _answers_match(baseline_answer, ex.ground_truth)
         debate_correct = _answers_match(debate_answer, ex.ground_truth)
         debate_improved = debate_correct and not baseline_correct
+        debate_regressed = baseline_correct and not debate_correct
 
         return BenchmarkResult(
             example_id=ex.id,
@@ -124,6 +167,7 @@ class BenchmarkRunner:
             baseline_correct=baseline_correct,
             debate_correct=debate_correct,
             debate_improved=debate_improved,
+            debate_regressed=debate_regressed,
             debate_confidence=debate_result.judge_output.confidence,
             rounds_used=debate_result.rounds_used,
             converged=debate_result.converged,
@@ -178,6 +222,7 @@ class BenchmarkRunner:
         baseline_acc = sum(1 for r in ok if r.baseline_correct) / n_ok
         debate_acc = sum(1 for r in ok if r.debate_correct) / n_ok
         improved = sum(1 for r in ok if r.debate_improved) / n_ok
+        regressed = sum(1 for r in ok if r.debate_regressed) / n_ok
         avg_confidence = sum(r.debate_confidence for r in ok) / n_ok
         avg_rounds = sum(r.rounds_used for r in ok) / n_ok
         convergence_rate = sum(1 for r in ok if r.converged) / n_ok
@@ -190,6 +235,7 @@ class BenchmarkRunner:
             "baseline_accuracy": round(baseline_acc, 3),
             "debate_accuracy": round(debate_acc, 3),
             "debate_improvement_rate": round(improved, 3),
+            "debate_regression_rate": round(regressed, 3),
             "avg_debate_confidence": round(avg_confidence, 3),
             "avg_rounds_used": round(avg_rounds, 2),
             "convergence_rate": round(convergence_rate, 3),

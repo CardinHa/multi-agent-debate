@@ -122,6 +122,8 @@ class BenchmarkResult(BaseModel):
     baseline_correct: Optional[bool] = None
     debate_correct: Optional[bool] = None
     debate_improved: bool = False
+    # True when the baseline answer was correct but the debate's final answer was not.
+    debate_regressed: bool = False
     debate_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     rounds_used: int = 0
     converged: bool = False

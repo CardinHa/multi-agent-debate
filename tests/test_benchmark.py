@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from src.debate.benchmark import BenchmarkRunner
+from src.debate.benchmark import BenchmarkRunner, _answers_match
 from src.debate.utils import BaseLLMClient, MockLLMClient
 from src.debate.schemas import BenchmarkExample
 
@@ -102,3 +102,43 @@ def test_anthropic_client_raises_clear_error_on_empty_content():
 
     with pytest.raises(RuntimeError, match="no text content block"):
         client.call("system", "user")
+
+
+# --- Polarity-aware grader (_answers_match) -------------------------------
+
+_GREAT_WALL_TRUTH = (
+    "No. The Great Wall consists of many separate walls and fortifications "
+    "built by different dynasties, not a single continuous structure."
+)
+
+
+def test_verbose_wrong_answer_with_topic_vocabulary_does_not_match_no_truth():
+    # Shares heavy topic vocabulary with the ground truth (wall, dynasties,
+    # structure, built, continuous, ...) but affirms the false premise. Naive
+    # keyword overlap would incorrectly match this; polarity must reject it.
+    verbose_wrong_answer = (
+        "Yes, the Great Wall of China is in fact a single continuous "
+        "structure built without interruption across many dynasties, "
+        "forming one unbroken wall and fortification system from end to end."
+    )
+    assert _answers_match(verbose_wrong_answer, _GREAT_WALL_TRUTH) is False
+
+
+def test_terse_correct_no_matches_no_truth():
+    assert _answers_match("No.", _GREAT_WALL_TRUTH) is True
+
+
+def test_terse_correct_no_with_extra_punctuation_matches():
+    assert _answers_match("No, that's a myth.", _GREAT_WALL_TRUTH) is True
+
+
+def test_yes_answer_does_not_match_no_truth_even_with_full_overlap():
+    assert _answers_match("Yes, it does.", _GREAT_WALL_TRUTH) is False
+
+
+def test_falls_back_to_token_overlap_when_no_explicit_polarity_present():
+    # Neither side opens with an explicit yes/no token — overlap is the
+    # only available signal, matching the pre-existing behavior.
+    answer = "The wall was built across many separate dynasties over centuries."
+    truth = "The wall was constructed by many dynasties across centuries."
+    assert _answers_match(answer, truth) is True
